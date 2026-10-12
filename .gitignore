@@ -1,0 +1,56 @@
+# dependencies and builds
+node_modules/
+dist/
+*.tsbuildinfo
+.venv/
+__pycache__/
+*.pyc
+
+# secrets: never commit
+.env
+.env.*
+!.env.example
+.mcp.json
+*.pem
+*-key.json
+service-account*.json
+
+# model weights and caches
+*.safetensors
+*.gguf
+.cache/
+
+# OS and editors
+.DS_Store
+Thumbs.db
+.idea/
+
+# local Claude Code state
+.claude/settings.local.json
+
+# from the Vite+ scaffold
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+node_modules
+dist
+dist-ssr
+*.local
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.claude/worktrees/
+
+# declaration files belong in dist only
+packages/*/src/**/*.d.ts
+packages/*/tests/**/*.d.ts

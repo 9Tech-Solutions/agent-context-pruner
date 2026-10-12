@@ -1,0 +1,45 @@
+{
+  "name": "@9tech.solutions/pruner-domain",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Host-neutral core of agent-context-pruner: transcript model, state fitting, decisions, and the DecisionModel port.",
+  "homepage": "https://github.com/9Tech-Solutions/agent-context-pruner#readme",
+  "bugs": {
+    "url": "https://github.com/9Tech-Solutions/agent-context-pruner/issues"
+  },
+  "license": "SEE LICENSE IN LICENSE",
+  "author": "9Tech Solutions <info@9tech.solutions>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/9Tech-Solutions/agent-context-pruner.git",
+    "directory": "packages/domain"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": "./dist/index.mjs",
+      "./package.json": "./package.json"
+    },
+    "access": "public"
+  },
+  "scripts": {
+    "build": "vp pack",
+    "dev": "vp pack --watch",
+    "test": "vp test",
+    "check": "vp check",
+    "prepublishOnly": "vp run build"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "bumpp": "^11.1.0",
+    "typescript": "^7.0.2",
+    "vite-plus": "catalog:"
+  }
+}
