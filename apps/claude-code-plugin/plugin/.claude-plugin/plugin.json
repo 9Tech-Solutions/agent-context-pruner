@@ -78,6 +78,13 @@
       "title": "Note dropped calls",
       "description": "Leave a one-line note where a dropped tool call's result was, so the model knows what was removed and can re-run it.",
       "default": true
+    },
+    "preCompactHooks": {
+      "type": "string",
+      "title": "PreCompact hooks",
+      "description": "run: before the pruned history replaces the transcript, let Claude Code run its classic PreCompact hooks (ECC's pre-compact, your own); costs one small summary request. skip: faster, but those hooks do not run.",
+      "options": ["run", "skip"],
+      "default": "run"
     }
   }
 }

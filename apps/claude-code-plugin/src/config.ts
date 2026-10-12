@@ -26,6 +26,8 @@ export interface HookConfig {
   readonly minReductionRatio: number;
   /** Retry with the rules-based model when the chosen model is unavailable or fails. */
   readonly fallbackToHeuristic: boolean;
+  /** Let core run the classic PreCompact hooks before the pruned history replaces the transcript. */
+  readonly runPreCompactHooks: boolean;
 }
 
 /** Credentials read from the environment, never from the plugin's source. */
@@ -39,6 +41,7 @@ export const HOOK_DEFAULTS = {
   compactAtPercent: 60,
   minReductionRatio: 0.25,
   fallbackToHeuristic: true,
+  runPreCompactHooks: true,
 } as const;
 
 function text(options: PluginOptions, key: string): string | undefined {
@@ -78,5 +81,6 @@ export function resolveHookConfig(options: PluginOptions): HookConfig {
     compactAtPercent: number(options, "compactAtPercent") ?? HOOK_DEFAULTS.compactAtPercent,
     minReductionRatio: number(options, "minReductionRatio") ?? HOOK_DEFAULTS.minReductionRatio,
     fallbackToHeuristic: flag(options, "fallbackToHeuristic") ?? HOOK_DEFAULTS.fallbackToHeuristic,
+    runPreCompactHooks: text(options, "preCompactHooks") !== "skip",
   };
 }

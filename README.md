@@ -49,7 +49,7 @@ fails, the plugin prunes with the rules instead (`fallbackToHeuristic`, on by de
 options: `keepThreshold`, `preserveRecentMessages` (6), `compactAtPercent` (60, `0` turns the
 plugin's own auto-compaction off), `minReductionRatio` (0.25), `truncateHeadChars` (300),
 `noteDroppedCalls` (on: a dropped call leaves a one-line note where its result was, so the
-model knows what to re-run).
+model knows what to re-run), `preCompactHooks` (`run`: see ECC below).
 
 Keys are read from the environment or the plugin's secure `apiKey` option. Never put them in a
 file in this repository.
@@ -69,9 +69,11 @@ together:
 - Compact at the boundary it suggests, with the focus as instructions (above).
 - Set `compactAtPercent` to `0`, so the plugin never compacts mid-task on its own. Claude Code's
   own threshold still compacts through the plugin when the window is nearly full.
-- Known gap: when the plugin replaces a compaction, Claude Code does not run classic `PreCompact`
-  hooks, so ECC's `pre-compact.js` (its session summary and the `Compaction occurred` marker) is
-  skipped. It still runs whenever the plugin falls back to the built-in summary.
+- Classic `PreCompact` hooks still run, ECC's `pre-compact.js` included. Claude Code fires them only
+  inside its own compaction, so before the pruned history is installed the plugin lets that
+  compaction run on a short stand-in transcript (the last four text messages) and discards its
+  summary. A hook that blocks the compaction is respected. The cost is one small summary request
+  per compaction, timed in the log; set `preCompactHooks` to `skip` to trade the hooks for speed.
 
 ## How it works
 

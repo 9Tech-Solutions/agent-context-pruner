@@ -1,53 +1,3 @@
-//#region src/config.ts
-const PROVIDERS = [
-	"auto",
-	"typesafe",
-	"cloudflare",
-	"ollama",
-	"custom",
-	"heuristic"
-];
-const HOOK_DEFAULTS = {
-	compactAtPercent: 60,
-	minReductionRatio: .25,
-	fallbackToHeuristic: true
-};
-function text(options, key) {
-	const value = options[key];
-	return typeof value === "string" && value.trim().length > 0 ? value.trim() : void 0;
-}
-function number(options, key) {
-	const value = options[key];
-	return typeof value === "number" && Number.isFinite(value) ? value : void 0;
-}
-function flag(options, key) {
-	const value = options[key];
-	return typeof value === "boolean" ? value : void 0;
-}
-function isProvider(value) {
-	return PROVIDERS.some((provider) => provider === value);
-}
-/** Reads the plugin's options; anything missing or malformed takes the default. */
-function resolveHookConfig(options) {
-	const provider = text(options, "provider");
-	return {
-		provider: isProvider(provider) ? provider : "auto",
-		model: text(options, "model"),
-		apiKey: text(options, "apiKey"),
-		baseUrl: text(options, "baseUrl"),
-		accountId: text(options, "accountId"),
-		compact: {
-			keepThreshold: number(options, "keepThreshold"),
-			preserveRecentMessages: number(options, "preserveRecentMessages"),
-			truncateHeadChars: number(options, "truncateHeadChars"),
-			noteDroppedCalls: flag(options, "noteDroppedCalls")
-		},
-		compactAtPercent: number(options, "compactAtPercent") ?? HOOK_DEFAULTS.compactAtPercent,
-		minReductionRatio: number(options, "minReductionRatio") ?? HOOK_DEFAULTS.minReductionRatio,
-		fallbackToHeuristic: flag(options, "fallbackToHeuristic") ?? HOOK_DEFAULTS.fallbackToHeuristic
-	};
-}
-//#endregion
 //#region ../../packages/domain/src/text.ts
 /** `text` cut to `limit` characters, ending in `…` when it was longer. */
 function truncate(text, limit) {
@@ -1267,8 +1217,10 @@ async function compactSession(messages, config, secrets, transport, instructions
 	};
 }
 //#endregion
-//#region src/register.ts
+//#region src/compact-hook.ts
 const TOAST_MS = 15e3;
+/** The answer to a `precompute` dispatch: pruning runs when the compaction itself runs. */
+const PRECOMPUTE_SKIP = "agent-context-pruner prunes when the compaction runs";
 function notify($, text) {
 	$.ui.log(text);
 	$.ui.toast(text, { timeoutMs: TOAST_MS });
@@ -1303,24 +1255,132 @@ async function readSecrets($) {
 		cloudflareAccountId
 	};
 }
+/**
+* A small stand-in transcript for core: the last few messages with text,
+* rebuilt without handles or tool blocks, so core's own summary of it is cheap.
+*/
+function probeOf(messages) {
+	const texts = messages.filter((m) => m.text.trim().length > 0).slice(-4).map((m) => ({
+		role: m.role,
+		text: m.text,
+		toolUses: []
+	}));
+	if (texts.length > 0) return texts;
+	return [{
+		role: "user",
+		text: "(compacted by agent-context-pruner)",
+		toolUses: []
+	}];
+}
+/**
+* Classic PreCompact hooks run only inside core's compaction, and a plugin
+* cannot raise them itself. So core compacts the stand-in transcript: its
+* PreCompact hooks run as they always do, and its summary is then dropped.
+* Answers core's skip when a hook blocked the compaction, null otherwise.
+*/
+async function runPreCompactHooks($, e, next) {
+	const started = Date.now();
+	const core = await next({
+		...e,
+		messages: probeOf(e.messages)
+	});
+	$.ui.log(`PreCompact hooks ran through core compaction in ${Date.now() - started} ms`);
+	return "skip" in core && typeof core.skip === "string" ? { skip: core.skip } : null;
+}
+async function finish($, e, next, outcome, config) {
+	if (config.runPreCompactHooks) {
+		const skipped = await runPreCompactHooks($, e, next).catch((error) => {
+			$.ui.log(`PreCompact hooks through core failed (${messageOf(error)}); keeping the pruned history`);
+			return null;
+		});
+		if (skipped) {
+			notify($, `compaction skipped (${skipped.skip})`);
+			return skipped;
+		}
+	}
+	notify($, `${`kept ${outcome.messages.length}/${e.messages.length} messages, no summary`} (${summarize(outcome.result)})`);
+	return { messages: outcome.messages };
+}
+/**
+* The `session.compact` hook: prunes with the configured model, lets core run
+* the classic PreCompact hooks, and falls back to core's own summary whenever
+* pruning fails or would remove too little.
+*/
+async function handleCompact(config, $, e, next) {
+	if (e.trigger === "precompute") return { skip: PRECOMPUTE_SKIP };
+	let outcome;
+	try {
+		const secrets = await readSecrets($);
+		outcome = await compactSession(e.messages, config, secrets, engineTransport($), e.instructions);
+	} catch (error) {
+		notify($, `fallback to built-in summary (${messageOf(error)})`);
+		return next(e);
+	}
+	for (const line of outcome.log) $.ui.log(line);
+	if (outcome.kind === "fallback") {
+		notify($, `fallback to built-in summary (${outcome.reason})`);
+		return next(e);
+	}
+	return finish($, e, next, outcome, config);
+}
+//#endregion
+//#region src/config.ts
+const PROVIDERS = [
+	"auto",
+	"typesafe",
+	"cloudflare",
+	"ollama",
+	"custom",
+	"heuristic"
+];
+const HOOK_DEFAULTS = {
+	compactAtPercent: 60,
+	minReductionRatio: .25,
+	fallbackToHeuristic: true,
+	runPreCompactHooks: true
+};
+function text(options, key) {
+	const value = options[key];
+	return typeof value === "string" && value.trim().length > 0 ? value.trim() : void 0;
+}
+function number(options, key) {
+	const value = options[key];
+	return typeof value === "number" && Number.isFinite(value) ? value : void 0;
+}
+function flag(options, key) {
+	const value = options[key];
+	return typeof value === "boolean" ? value : void 0;
+}
+function isProvider(value) {
+	return PROVIDERS.some((provider) => provider === value);
+}
+/** Reads the plugin's options; anything missing or malformed takes the default. */
+function resolveHookConfig(options) {
+	const provider = text(options, "provider");
+	return {
+		provider: isProvider(provider) ? provider : "auto",
+		model: text(options, "model"),
+		apiKey: text(options, "apiKey"),
+		baseUrl: text(options, "baseUrl"),
+		accountId: text(options, "accountId"),
+		compact: {
+			keepThreshold: number(options, "keepThreshold"),
+			preserveRecentMessages: number(options, "preserveRecentMessages"),
+			truncateHeadChars: number(options, "truncateHeadChars"),
+			noteDroppedCalls: flag(options, "noteDroppedCalls")
+		},
+		compactAtPercent: number(options, "compactAtPercent") ?? HOOK_DEFAULTS.compactAtPercent,
+		minReductionRatio: number(options, "minReductionRatio") ?? HOOK_DEFAULTS.minReductionRatio,
+		fallbackToHeuristic: flag(options, "fallbackToHeuristic") ?? HOOK_DEFAULTS.fallbackToHeuristic,
+		runPreCompactHooks: text(options, "preCompactHooks") !== "skip"
+	};
+}
+//#endregion
+//#region src/register.ts
 const register = (on, options) => {
 	const config = resolveHookConfig(options);
 	let compacting = false;
-	on("session.compact", async ($, e, next) => {
-		try {
-			const outcome = await compactSession(e.messages, config, await readSecrets($), engineTransport($), e.instructions);
-			for (const line of outcome.log) $.ui.log(line);
-			if (outcome.kind === "fallback") {
-				notify($, `fallback to built-in summary (${outcome.reason})`);
-				return next(e);
-			}
-			notify($, `${`kept ${outcome.messages.length}/${e.messages.length} messages, no summary`} (${summarize(outcome.result)})`);
-			return { messages: outcome.messages };
-		} catch (error) {
-			notify($, `fallback to built-in summary (${messageOf(error)})`);
-			return next(e);
-		}
-	});
+	on("session.compact", ($, e, next) => handleCompact(config, $, e, next));
 	on("turn.complete", async ($, e, next) => {
 		if (compacting || config.compactAtPercent <= 0) return next(e);
 		try {
