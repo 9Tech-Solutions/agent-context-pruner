@@ -75,9 +75,13 @@ function goalFromMessages(messages) {
 /** Results within this many characters of the head are kept whole: the note would not save anything. */
 const NOTE_SLACK = 120;
 const NOTE_INPUT_CHARS = 160;
+/** Leading characters of a result that truncation keeps: all of one too short to be worth a note. */
+function keptChars(resultChars, headChars) {
+	return resultChars <= headChars + NOTE_SLACK ? resultChars : headChars;
+}
 /** A dropped result: its first `headChars` characters and a note saying how much was cut. */
 function truncatedResultText(text, isError, headChars) {
-	if (text.length <= headChars + NOTE_SLACK) return text;
+	if (keptChars(text.length, headChars) === text.length) return text;
 	const head = headChars > 0 ? `${text.slice(0, headChars)}\n` : "";
 	const error = isError ? " (error)" : "";
 	return `${head}[agent-context-pruner truncated ${text.length - headChars} chars of this tool result${error}; re-run the tool if needed]`;
@@ -890,7 +894,7 @@ const PROFILES = {
 		maxStateTokens: 25e3,
 		maxQuestionsPerRequest: Number.POSITIVE_INFINITY,
 		keepThreshold: .5,
-		endpoint: (config) => ok(`${root(config.baseUrl ?? "https://api.typesafe.ai")}/v1/systemone`),
+		endpoint: () => ok("https://api.typesafe.ai/v1/systemone"),
 		unwrap: identity
 	},
 	cloudflare: {

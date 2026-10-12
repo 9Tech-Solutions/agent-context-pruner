@@ -16,8 +16,9 @@ Hosts: Claude Code first. Codex and Antigravity are planned.
 
 ## Status
 
-Pre-alpha. The core library, the model adapters and the Claude Code plugin are built and unit
-tested; the plugin has not yet been run against live sessions. Nothing is published to npm yet.
+Pre-alpha. The core library, the model adapters, the Claude Code plugin and the evaluation CLI
+are built and unit tested, and the plugin has run in live Claude Code 2.1.296 sessions with
+TypeSafe Jev. Nothing is published to npm yet.
 
 ## Install in Claude Code
 
@@ -45,11 +46,15 @@ From then on `/compact` and auto-compaction go through the plugin. A toast says 
 | `heuristic`  | the built-in rules, no network          | nothing                                                |
 
 `auto` tries TypeSafe, then Cloudflare, then the rules. When the chosen model is unavailable or
-fails, the plugin prunes with the rules instead (`fallbackToHeuristic`, on by default). Other
-options: `keepThreshold`, `preserveRecentMessages` (6), `compactAtPercent` (60, `0` turns the
-plugin's own auto-compaction off), `minReductionRatio` (0.25), `truncateHeadChars` (300),
-`noteDroppedCalls` (on: a dropped call leaves a one-line note where its result was, so the
-model knows what to re-run), `preCompactHooks` (`run`: see ECC below).
+fails, the plugin prunes with the rules instead (`fallbackToHeuristic`, on by default).
+
+Every other setting is a picker in `/config` (or `/plugin` → the plugin → configure):
+`keepThreshold` (`model default`), `compactAtPercent` (60, `off` leaves compaction to
+`/compact` and Claude Code), `preCompactHooks` (`run`: see ECC below), `preserveRecentMessages`
+(6), `minReductionRatio` (25%), `truncateHeadChars` (300), `noteDroppedCalls` (on: a dropped
+call leaves a one-line note where its result was, so the model knows what to re-run),
+`fallbackToHeuristic` (on), and `logEachDecision` (off: one summary line per compaction; on:
+every scored call's keep scores).
 
 Keys are read from the environment or the plugin's secure `apiKey` option. Never put them in a
 file in this repository.
@@ -119,13 +124,45 @@ if (result.ok && reductionRatio(result.value) >= 0.25) {
 | `ollama`     | `http://localhost:11434/v1/systemone`  | Ollama 0.35+          |
 | `custom`     | `<baseUrl>/v1/systemone`               | `baseUrl`, `model`    |
 
+## Measuring a model
+
+`agent-context-pruner eval` replays your own Claude Code sessions to show what a model would
+prune and what that would cost:
+
+```sh
+bun apps/cli/src/main.ts eval ~/.claude/projects/<project>/<session>.jsonl --provider heuristic,typesafe
+```
+
+It picks a few points in each session where a compaction could have happened, asks each model
+for its keep scores there, and checks them against what the session did afterwards. Text the
+model wrote again later (an `Edit` copying lines from a `Read`, a commit hash from `git log`, a
+line from its own earlier `Write`) is needed when, before that point, only droppable tool calls
+held it and nothing after the point supplied it again first. A threshold loses that text only
+when it removes every copy, and each loss is charged one re-read of the call holding it. For
+every keep threshold the report shows how much would be removed, how many re-reads that causes,
+and the net saving after them. It also reports a threshold-free ranking score (AUC: 0.5 is
+chance, 1 is perfect).
+
+Network providers receive the session text, so pass only sessions you are allowed to send. The
+`--json` report holds scores, labels and error kinds, never transcript text.
+
+First measurement (2 sessions of building this project, 9 compaction points, 1,154 scored calls,
+October 2026): 16% of scored calls held text reused later. Jev ranked those at 0.57 on its
+keep-result score (barely above chance) and 0.65 on keep-call. Its net saving was 70% at the
+0.5 default, the best of any threshold, so the default stands. The rules model ranked them at
+0.39, so its size and edited-file rules tend to truncate the results that get reused, and saved
+30% at its default. Two sessions from one person are a small sample, so treat these as a first
+reading, not a benchmark.
+
 ## Repository layout
 
 | Path                      | Package                               | What it holds                                                        |
 | ------------------------- | ------------------------------------- | -------------------------------------------------------------------- |
 | `packages/domain`         | `@9tech.solutions/pruner-domain`      | Core logic and the `DecisionModel` port, zero deps                   |
 | `packages/models`         | `@9tech.solutions/pruner-models`      | SystemOne adapter with profiles, rules-based model                   |
+| `packages/eval`           | `@9tech.solutions/pruner-eval`        | Replays sessions and measures a model's keep threshold               |
 | `apps/claude-code-plugin` | `@9tech.solutions/pruner-claude-code` | Claude Code plugin: hook source and the installable `plugin/` folder |
+| `apps/cli`                | `@9tech.solutions/pruner-cli`         | `agent-context-pruner eval`: the evaluation from the command line    |
 
 ## Development
 

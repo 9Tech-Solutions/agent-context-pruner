@@ -26,9 +26,14 @@ interface Settings {
 const NOTE_SLACK = 120;
 const NOTE_INPUT_CHARS = 160;
 
+/** Leading characters of a result that truncation keeps: all of one too short to be worth a note. */
+export function keptChars(resultChars: number, headChars: number): number {
+  return resultChars <= headChars + NOTE_SLACK ? resultChars : headChars;
+}
+
 /** A dropped result: its first `headChars` characters and a note saying how much was cut. */
 export function truncatedResultText(text: string, isError: boolean, headChars: number): string {
-  if (text.length <= headChars + NOTE_SLACK) return text;
+  if (keptChars(text.length, headChars) === text.length) return text;
   const head = headChars > 0 ? `${text.slice(0, headChars)}\n` : "";
   const error = isError ? " (error)" : "";
   return `${head}[agent-context-pruner truncated ${text.length - headChars} chars of this tool result${error}; re-run the tool if needed]`;

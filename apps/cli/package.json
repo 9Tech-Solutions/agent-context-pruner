@@ -1,0 +1,33 @@
+{
+  "name": "@9tech.solutions/pruner-cli",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Command line for agent-context-pruner: evaluate decision models against recorded agent sessions.",
+  "license": "SEE LICENSE IN LICENSE",
+  "author": "9Tech Solutions <info@9tech.solutions>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/9Tech-Solutions/agent-context-pruner.git",
+    "directory": "apps/cli"
+  },
+  "bin": {
+    "agent-context-pruner": "./dist/main.mjs"
+  },
+  "type": "module",
+  "scripts": {
+    "build": "vp pack",
+    "test": "vp test",
+    "check": "vp check",
+    "eval": "bun src/main.ts eval"
+  },
+  "dependencies": {
+    "@9tech.solutions/pruner-domain": "workspace:*",
+    "@9tech.solutions/pruner-eval": "workspace:*",
+    "@9tech.solutions/pruner-models": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "typescript": "^7.0.2",
+    "vite-plus": "catalog:"
+  }
+}

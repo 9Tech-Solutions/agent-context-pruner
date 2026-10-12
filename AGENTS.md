@@ -16,7 +16,8 @@
 
 ## Layout and dependency direction
 
-`packages/domain` → `packages/models` → `apps/*`. Never import in the other direction.
+`packages/domain` → `packages/models`, `packages/eval` → `apps/*`. Never import in the other
+direction. `packages/eval` depends on the domain only.
 
 - `packages/domain` (`@9tech.solutions/pruner-domain`): the host-neutral core. Transcript
   types, tool-call pairing, state fitting, keep/drop decisions, and the `DecisionModel` port.
@@ -24,10 +25,17 @@
 - `packages/models` (`@9tech.solutions/pruner-models`): `DecisionModel` adapters. One
   SystemOne adapter with provider profiles (`typesafe`, `cloudflare`, `ollama`, `custom`) and a
   rules-based `heuristic` model.
+- `packages/eval` (`@9tech.solutions/pruner-eval`): the evaluation harness. Picks compaction
+  points in a transcript, labels each call by what the session did after the point (hindsight),
+  replays every keep threshold, and reports reduction, lost results, net saving and AUC. Pure:
+  it takes a `DecisionModel` and `Message[]`, never files or network.
 - `apps/claude-code-plugin` (`@9tech.solutions/pruner-claude-code`): the Claude Code host
   adapter. `src/` is the hook logic; `plugin/` is the installable plugin folder that
   `.claude-plugin/marketplace.json` at the repo root points to.
-- `apps/` (planned): a CLI, then Codex and Antigravity hosts.
+- `apps/cli` (`@9tech.solutions/pruner-cli`): `agent-context-pruner eval`. Reads Claude Code
+  `.jsonl` sessions (`src/transcript.ts`, split at each `compact_boundary`), builds models from
+  environment keys, and prints the eval report. Run from source with `bun apps/cli/src/main.ts`.
+- `apps/` (planned): Codex and Antigravity hosts.
 
 ## The Claude Code plugin
 
