@@ -8,7 +8,11 @@ export interface SystemOneConfig {
   /** Model name sent in the request body. Defaults per profile. */
   readonly model?: string;
   readonly apiKey?: string;
-  /** Server root such as `http://localhost:8000`; the profile appends `/v1/systemone`. */
+  /**
+   * Server root such as `http://localhost:8000`, for the `ollama` and `custom`
+   * profiles; the profile appends `/v1/systemone`. The hosted profiles ignore it,
+   * so their API key never goes to a server configured for another provider.
+   */
   readonly baseUrl?: string;
   /** Cloudflare account id, for the `cloudflare` profile. */
   readonly accountId?: string;
@@ -52,7 +56,7 @@ const typesafe: SystemOneProfile = {
   maxStateTokens: 25_000,
   maxQuestionsPerRequest: Number.POSITIVE_INFINITY,
   keepThreshold: 0.5,
-  endpoint: (config) => ok(`${root(config.baseUrl ?? "https://api.typesafe.ai")}/v1/systemone`),
+  endpoint: () => ok("https://api.typesafe.ai/v1/systemone"),
   unwrap: identity,
 };
 

@@ -79,6 +79,18 @@ describe("SystemOne requests", () => {
     expect(JSON.parse(seen[0]!.body).model).toBe("nimble");
   });
 
+  it("never sends the TypeSafe key to a base URL meant for another provider", async () => {
+    const seen: HttpRequest[] = [];
+    const model = unwrap(
+      createSystemOneModel(
+        { ...jev, baseUrl: "http://localhost:11434" },
+        fakeServer(() => 0.9, seen),
+      ),
+    );
+    unwrap(await compact(transcript(), model, { preserveRecentMessages: 1 }));
+    expect(seen.map((r) => r.url)).toEqual(["https://api.typesafe.ai/v1/systemone"]);
+  });
+
   it("refuses incomplete configuration", () => {
     expect(
       unwrapErr(createSystemOneModel({ profile: "typesafe" }, respond(200, "{}"))).message,
