@@ -10,7 +10,8 @@ The decision model is swappable:
 - **Hosted:** TypeSafe Jev, Cloudflare Clef and Clef-Flash, or any endpoint that speaks the
   SystemOne request format.
 - **Local:** Ollama, SGLang, laya-serve, or any server exposing `/v1/systemone`.
-- **No model:** a rules-based scorer that runs offline and doubles as the fallback.
+- **No model:** a rules-based scorer that runs offline and doubles as the fallback. It ranks by
+  how long ago a call ran, the strongest signal of reuse we have measured (see below).
 
 Hosts: Claude Code first. Codex and Antigravity are planned.
 
@@ -146,13 +147,20 @@ chance, 1 is perfect).
 Network providers receive the session text, so pass only sessions you are allowed to send. The
 `--json` report holds scores, labels and error kinds, never transcript text.
 
-First measurement (2 sessions of building this project, 9 compaction points, 1,154 scored calls,
-October 2026): 16% of scored calls held text reused later. Jev ranked those at 0.57 on its
-keep-result score (barely above chance) and 0.65 on keep-call. Its net saving was 70% at the
-0.5 default, the best of any threshold, so the default stands. The rules model ranked them at
-0.39, so its size and edited-file rules tend to truncate the results that get reused, and saved
-30% at its default. Two sessions from one person are a small sample, so treat these as a first
-reading, not a benchmark.
+Measurements so far (October 2026, one person's sessions, so a first reading, not a benchmark):
+
+- **What predicts reuse.** Across 76 firmware sessions (4,750 scored calls, 14% holding text
+  reused later), how long ago a call ran ranks reuse at 0.72 AUC. Reuse halves roughly every 80
+  messages. A read superseded by a later read of the same file was reused 7% of the time, a
+  failed call that was retried 6%, task bookkeeping 2 to 6%, writes and subagent reports 25%.
+  Result size (0.53) and whether the file was edited since (0.50) predict nothing.
+- **Rules v2** is built from those signals. Tuned on the firmware sessions, it was then measured
+  on 12 points from two other sessions (1,431 calls): 0.72 keep-result AUC, against 0.52 for
+  Jev. At about the same reduction, it causes fewer re-reads: 48% reduction with 45 re-reads
+  (threshold 0.5) against Jev's 47% with 53 (threshold 0.2).
+- **Jev's default** of 0.5 drops nearly every scored call (76% reduction, 65% net after
+  re-reads), which is also its best net saving, so it stays. A lower Jev threshold mostly keeps
+  everything: its scores sit between 0.05 and 0.25.
 
 ## Repository layout
 

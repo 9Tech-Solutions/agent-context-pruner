@@ -41,13 +41,9 @@ describe("compaction instructions in the models", () => {
       unwrap(
         await compact(rereadSession(), model, { preserveRecentMessages: 1, instructions }),
       ).decisions.map((d) => d.action);
-    expect(await actions()).toEqual(["drop_call", "drop_result", "drop_result"]);
-    expect(await actions("focus on src/auth.ts next.")).toEqual(["keep", "keep", "drop_result"]);
-    expect(await actions("keep Auth.ts")).toEqual(["keep", "keep", "drop_result"]);
-    expect(await actions("keep the login flow")).toEqual([
-      "drop_call",
-      "drop_result",
-      "drop_result",
-    ]);
+    expect(await actions()).toEqual(["drop_call", "keep", "keep"]);
+    expect(await actions("focus on src/auth.ts next.")).toEqual(["keep", "keep", "keep"]);
+    expect(await actions("keep Auth.ts")).toEqual(["keep", "keep", "keep"]);
+    expect(await actions("keep the login flow")).toEqual(["drop_call", "keep", "keep"]);
   });
 });

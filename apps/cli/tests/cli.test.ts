@@ -148,7 +148,7 @@ describe("runEval", () => {
     if (!args.ok) throw new Error(args.error);
     const run = io(files);
     expect(await runEval(args.value, run)).toBe(0);
-    expect(run.output.join("")).toMatch(/^heuristic:v1: 1 compaction points, 11 scored calls/);
+    expect(run.output.join("")).toMatch(/^heuristic:v2: 1 compaction points, 11 scored calls/);
     expect(run.notes.some((n) => n.includes("sending"))).toBe(false);
     const json = run.written["out.json"]!;
     expect(JSON.parse(json)[0].neededShare).toBeCloseTo(1 / 11);

@@ -30,15 +30,15 @@ describe("heuristic model", () => {
       ["a", "Read", { file_path: "src/a.ts" }, big],
       ["b", "Read", { file_path: "src\\a.ts" }, big],
     );
-    expect(await actions(messages)).toEqual(["t1:drop_call", "t2:drop_result"]);
+    expect(await actions(messages)).toEqual(["t1:drop_call", "t2:keep"]);
   });
 
-  it("keeps the call but truncates a read whose file was edited later", async () => {
+  it("keeps a recent read after its file was edited: later edits reuse its unchanged lines", async () => {
     const messages = session(
       ["a", "Read", { file_path: "src/a.ts" }, "short"],
       ["b", "Edit", { file_path: "src/a.ts", old_string: "x", new_string: "y" }, "ok"],
     );
-    expect(await actions(messages)).toEqual(["t1:drop_result", "t2:keep"]);
+    expect(await actions(messages)).toEqual(["t1:keep", "t2:keep"]);
   });
 
   it("truncates a failed call once the same tool succeeds", async () => {
@@ -49,13 +49,47 @@ describe("heuristic model", () => {
     expect(await actions(messages)).toEqual(["t1:drop_result", "t2:keep"]);
   });
 
-  it("truncates large results and keeps everything else", async () => {
+  it("truncates and then drops results as they age", async () => {
     const messages = session(
-      ["a", "Grep", { pattern: "x" }, big],
-      ["b", "Grep", { pattern: "y" }, "one match"],
+      ["a", "Bash", { command: "ls" }, big],
+      ["b", "Bash", { command: "pwd" }, big],
+      ["c", "Bash", { command: "date" }, big],
+      ["d", "Bash", { command: "whoami" }, big],
     );
-    expect(await actions(messages)).toEqual(["t1:drop_result", "t2:keep"]);
-    expect(await actions(messages, { largeResultChars: 100_000 })).toEqual(["t1:keep", "t2:keep"]);
+    expect(await actions(messages, { halfLifeMessages: 2 })).toEqual([
+      "t1:drop_call",
+      "t2:drop_call",
+      "t3:drop_call",
+      "t4:drop_result",
+    ]);
+    expect(await actions(messages)).toEqual(["t1:keep", "t2:keep", "t3:keep", "t4:keep"]);
+  });
+
+  it("lets bookkeeping go sooner and keeps what the model wrote longer", async () => {
+    const messages: Message[] = [
+      message("user", "start"),
+      message("assistant", "", {
+        toolUses: [
+          { tool_use_id: "a", tool: "TaskUpdate", input: { taskId: "1", status: "done" } },
+          { tool_use_id: "b", tool: "Write", input: { file_path: "src/b.ts", content: "x" } },
+          { tool_use_id: "c", tool: "Bash", input: { command: "ls" } },
+        ],
+      }),
+      message("user", "", {
+        toolResults: [
+          { tool_use_id: "a", text: "updated" },
+          { tool_use_id: "b", text: "created" },
+          { tool_use_id: "c", text: big },
+        ],
+      }),
+      message("user", "next"),
+    ];
+    expect(await actions(messages)).toEqual(["t1:drop_result", "t2:keep", "t3:keep"]);
+    expect(await actions(messages, { halfLifeMessages: 2.5 })).toEqual([
+      "t1:drop_call",
+      "t2:keep",
+      "t3:drop_result",
+    ]);
   });
 
   it("matches tool names case-insensitively and accepts custom tool lists", async () => {
@@ -73,6 +107,6 @@ describe("heuristic model", () => {
         preserveRecentMessages: 1,
       }),
     );
-    expect(output.stats).toMatchObject({ model: "heuristic:v1", requests: 0, stateStage: "" });
+    expect(output.stats).toMatchObject({ model: "heuristic:v2", requests: 0, stateStage: "" });
   });
 });

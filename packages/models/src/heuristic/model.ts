@@ -11,68 +11,95 @@ import {
 export interface HeuristicOptions {
   /** Tool names that read a file. Compared case-insensitively. */
   readonly readTools?: readonly string[];
-  /** Tool names that change a file. Compared case-insensitively. */
-  readonly writeTools?: readonly string[];
   /** Input keys that hold a file path. */
   readonly pathKeys?: readonly string[];
-  /** Results longer than this are truncated when no other rule applies. Default 4000. */
-  readonly largeResultChars?: number;
+  /** Messages after which a result's keep score halves. Default 80. */
+  readonly halfLifeMessages?: number;
 }
 
 interface Rules {
   readonly isRead: (tool: string) => boolean;
-  readonly isWrite: (tool: string) => boolean;
   readonly pathOf: (call: ToolCall) => string | undefined;
-  readonly largeResultChars: number;
+  readonly halfLife: number;
 }
 
 const READ_TOOLS = ["read", "read_file", "view", "notebookread"];
-const WRITE_TOOLS = [
-  "edit",
-  "multiedit",
-  "write",
-  "notebookedit",
-  "write_file",
-  "edit_file",
-  "apply_patch",
-];
+/** Task lists and tool lookups: rarely needed again once the step is done. */
+const BOOKKEEPING_TOOLS = new Set([
+  "taskcreate",
+  "taskupdate",
+  "taskstop",
+  "tasklist",
+  "taskget",
+  "todowrite",
+  "toolsearch",
+]);
+/** Searches: their findings usually get read in full right after. */
+const SEARCH_TOOLS = new Set(["grep", "glob", "websearch"]);
+/** What the model wrote or delegated: reused more often than other output. */
+const AUTHORED_TOOLS = new Set(["write", "agent", "task"]);
 
-const KEEP: CallScore = { keepCall: 1, keepResult: 1 };
-const DROP_CALL: CallScore = { keepCall: 0.1, keepResult: 0.1 };
-const DROP_RESULT: CallScore = { keepCall: 0.9, keepResult: 0.1 };
+/**
+ * Multipliers measured against what sessions reused later (76 recorded
+ * sessions, `agent-context-pruner eval`): a read superseded by a later read of
+ * the same file was reused 7% of the time against 18% for other reads, a failed
+ * call retried successfully 6%, task bookkeeping 2 to 6%, searches 7%, and
+ * writes and subagent reports 25%.
+ */
+const SUPERSEDED = 0.25;
+const RETRIED = 0.3;
+const BOOKKEEPING = 0.3;
+const SEARCH = 0.6;
+const AUTHORED = 1.5;
 
 function rulesOf(options: HeuristicOptions): Rules {
   const reads = new Set((options.readTools ?? READ_TOOLS).map((t) => t.toLowerCase()));
-  const writes = new Set((options.writeTools ?? WRITE_TOOLS).map((t) => t.toLowerCase()));
   const keys = options.pathKeys ?? PATH_KEYS;
+  const halfLife = options.halfLifeMessages ?? 80;
   return {
     isRead: (tool) => reads.has(tool.toLowerCase()),
-    isWrite: (tool) => writes.has(tool.toLowerCase()),
     pathOf: (call) => callPath(call.input, keys),
-    largeResultChars: options.largeResultChars ?? 4000,
+    halfLife: Number.isFinite(halfLife) && halfLife > 0 ? halfLife : 80,
   };
 }
 
-/**
- * Scores one call from what happened after it:
- * a file read again later is superseded (drop the call),
- * a file changed later has stale contents (keep the call, truncate the result),
- * a failed call retried successfully is settled (truncate the result),
- * and a large result is truncated. Everything else stays.
- */
-function scoreCall(call: ToolCall, calls: readonly ToolCall[], rules: Rules): CallScore {
+function toolFactor(tool: string): number {
+  const name = tool.toLowerCase();
+  if (BOOKKEEPING_TOOLS.has(name)) return BOOKKEEPING;
+  if (SEARCH_TOOLS.has(name)) return SEARCH;
+  return AUTHORED_TOOLS.has(name) ? AUTHORED : 1;
+}
+
+function laterFactor(call: ToolCall, calls: readonly ToolCall[], rules: Rules): number {
   const later = calls.filter((other) => other.callIndex > call.callIndex);
   const path = rules.pathOf(call);
-  const touches = (other: ToolCall, kind: (tool: string) => boolean) =>
-    kind(other.tool) && rules.pathOf(other) === path;
-  if (path && rules.isRead(call.tool)) {
-    if (later.some((other) => touches(other, rules.isRead))) return DROP_CALL;
-    if (later.some((other) => touches(other, rules.isWrite))) return DROP_RESULT;
-  }
-  if (call.isError && later.some((other) => other.tool === call.tool && !other.isError))
-    return DROP_RESULT;
-  if (call.resultChars > rules.largeResultChars) return DROP_RESULT;
-  return KEEP;
+  const superseded =
+    path !== undefined &&
+    rules.isRead(call.tool) &&
+    later.some((other) => rules.isRead(other.tool) && rules.pathOf(other) === path);
+  if (superseded) return SUPERSEDED;
+  const retried = call.isError && later.some((o) => o.tool === call.tool && !o.isError);
+  return retried ? RETRIED : 1;
+}
+
+/**
+ * Scores one call by how long ago it ran, the strongest signal of reuse in
+ * recorded sessions: the result's score halves every `halfLife` messages,
+ * scaled by what kind of tool it was and by what happened to it later. The
+ * call's score is the square root of the result's, so a call outlives its
+ * result: at a 0.5 threshold an ordinary result stays for `halfLife`
+ * messages, is then truncated, and its call goes after twice that.
+ */
+function scoreCall(
+  call: ToolCall,
+  calls: readonly ToolCall[],
+  total: number,
+  rules: Rules,
+): CallScore {
+  const age = Math.max(0, total - call.callIndex);
+  const decay = 0.5 ** (age / rules.halfLife);
+  const keepResult = Math.min(1, decay * toolFactor(call.tool) * laterFactor(call, calls, rules));
+  return { keepCall: Math.sqrt(keepResult), keepResult };
 }
 
 /**
@@ -82,11 +109,12 @@ function scoreCall(call: ToolCall, calls: readonly ToolCall[], rules: Rules): Ca
 export function createHeuristicModel(options: HeuristicOptions = {}): DecisionModel {
   const rules = rulesOf(options);
   return {
-    id: "heuristic:v1",
+    id: "heuristic:v2",
     capabilities: { state: "none", maxStateTokens: 0, estimateTokens, defaultKeepThreshold: 0.5 },
     score: async (request) => {
+      const total = request.messages.length;
       const scores = request.candidates.map(
-        (call) => [call.id, scoreCall(call, request.calls, rules)] as const,
+        (call) => [call.id, scoreCall(call, request.calls, total, rules)] as const,
       );
       return ok({ scores: new Map(scores), requests: 0 });
     },

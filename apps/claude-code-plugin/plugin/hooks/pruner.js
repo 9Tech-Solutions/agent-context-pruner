@@ -738,56 +738,77 @@ const READ_TOOLS = [
 	"view",
 	"notebookread"
 ];
-const WRITE_TOOLS = [
-	"edit",
-	"multiedit",
+/** Task lists and tool lookups: rarely needed again once the step is done. */
+const BOOKKEEPING_TOOLS = /* @__PURE__ */ new Set([
+	"taskcreate",
+	"taskupdate",
+	"taskstop",
+	"tasklist",
+	"taskget",
+	"todowrite",
+	"toolsearch"
+]);
+/** Searches: their findings usually get read in full right after. */
+const SEARCH_TOOLS = /* @__PURE__ */ new Set([
+	"grep",
+	"glob",
+	"websearch"
+]);
+/** What the model wrote or delegated: reused more often than other output. */
+const AUTHORED_TOOLS = /* @__PURE__ */ new Set([
 	"write",
-	"notebookedit",
-	"write_file",
-	"edit_file",
-	"apply_patch"
-];
-const KEEP = {
-	keepCall: 1,
-	keepResult: 1
-};
-const DROP_CALL = {
-	keepCall: .1,
-	keepResult: .1
-};
-const DROP_RESULT = {
-	keepCall: .9,
-	keepResult: .1
-};
+	"agent",
+	"task"
+]);
+/**
+* Multipliers measured against what sessions reused later (76 recorded
+* sessions, `agent-context-pruner eval`): a read superseded by a later read of
+* the same file was reused 7% of the time against 18% for other reads, a failed
+* call retried successfully 6%, task bookkeeping 2 to 6%, searches 7%, and
+* writes and subagent reports 25%.
+*/
+const SUPERSEDED = .25;
+const RETRIED = .3;
+const BOOKKEEPING = .3;
+const SEARCH = .6;
+const AUTHORED = 1.5;
 function rulesOf(options) {
 	const reads = new Set((options.readTools ?? READ_TOOLS).map((t) => t.toLowerCase()));
-	const writes = new Set((options.writeTools ?? WRITE_TOOLS).map((t) => t.toLowerCase()));
 	const keys = options.pathKeys ?? PATH_KEYS;
+	const halfLife = options.halfLifeMessages ?? 80;
 	return {
 		isRead: (tool) => reads.has(tool.toLowerCase()),
-		isWrite: (tool) => writes.has(tool.toLowerCase()),
 		pathOf: (call) => callPath(call.input, keys),
-		largeResultChars: options.largeResultChars ?? 4e3
+		halfLife: Number.isFinite(halfLife) && halfLife > 0 ? halfLife : 80
 	};
 }
-/**
-* Scores one call from what happened after it:
-* a file read again later is superseded (drop the call),
-* a file changed later has stale contents (keep the call, truncate the result),
-* a failed call retried successfully is settled (truncate the result),
-* and a large result is truncated. Everything else stays.
-*/
-function scoreCall(call, calls, rules) {
+function toolFactor(tool) {
+	const name = tool.toLowerCase();
+	if (BOOKKEEPING_TOOLS.has(name)) return BOOKKEEPING;
+	if (SEARCH_TOOLS.has(name)) return SEARCH;
+	return AUTHORED_TOOLS.has(name) ? AUTHORED : 1;
+}
+function laterFactor(call, calls, rules) {
 	const later = calls.filter((other) => other.callIndex > call.callIndex);
 	const path = rules.pathOf(call);
-	const touches = (other, kind) => kind(other.tool) && rules.pathOf(other) === path;
-	if (path && rules.isRead(call.tool)) {
-		if (later.some((other) => touches(other, rules.isRead))) return DROP_CALL;
-		if (later.some((other) => touches(other, rules.isWrite))) return DROP_RESULT;
-	}
-	if (call.isError && later.some((other) => other.tool === call.tool && !other.isError)) return DROP_RESULT;
-	if (call.resultChars > rules.largeResultChars) return DROP_RESULT;
-	return KEEP;
+	if (path !== void 0 && rules.isRead(call.tool) && later.some((other) => rules.isRead(other.tool) && rules.pathOf(other) === path)) return SUPERSEDED;
+	return call.isError && later.some((o) => o.tool === call.tool && !o.isError) ? RETRIED : 1;
+}
+/**
+* Scores one call by how long ago it ran, the strongest signal of reuse in
+* recorded sessions: the result's score halves every `halfLife` messages,
+* scaled by what kind of tool it was and by what happened to it later. The
+* call's score is the square root of the result's, so a call outlives its
+* result: at a 0.5 threshold an ordinary result stays for `halfLife`
+* messages, is then truncated, and its call goes after twice that.
+*/
+function scoreCall(call, calls, total, rules) {
+	const decay = .5 ** (Math.max(0, total - call.callIndex) / rules.halfLife);
+	const keepResult = Math.min(1, decay * toolFactor(call.tool) * laterFactor(call, calls, rules));
+	return {
+		keepCall: Math.sqrt(keepResult),
+		keepResult
+	};
 }
 /**
 * A decision model that needs no model at all: deterministic rules over the
@@ -796,7 +817,7 @@ function scoreCall(call, calls, rules) {
 function createHeuristicModel(options = {}) {
 	const rules = rulesOf(options);
 	return {
-		id: "heuristic:v1",
+		id: "heuristic:v2",
 		capabilities: {
 			state: "none",
 			maxStateTokens: 0,
@@ -804,7 +825,8 @@ function createHeuristicModel(options = {}) {
 			defaultKeepThreshold: .5
 		},
 		score: async (request) => {
-			const scores = request.candidates.map((call) => [call.id, scoreCall(call, request.calls, rules)]);
+			const total = request.messages.length;
+			const scores = request.candidates.map((call) => [call.id, scoreCall(call, request.calls, total, rules)]);
 			return ok({
 				scores: new Map(scores),
 				requests: 0

@@ -70,16 +70,16 @@ describe("chooseModels", () => {
   it("auto prefers TypeSafe, then Cloudflare, then the rules", () => {
     expect(choose({}, { typesafeApiKey: "k" })).toMatchObject({
       primary: "systemone:typesafe:jev-latest",
-      fallback: "heuristic:v1",
+      fallback: "heuristic:v2",
     });
     expect(choose({}, { cloudflareApiToken: "t", cloudflareAccountId: "a" })).toMatchObject({
       primary: "systemone:cloudflare:clef",
     });
     expect(choose({}, { cloudflareApiToken: "t" })).toMatchObject({
-      primary: "heuristic:v1",
+      primary: "heuristic:v2",
       fallback: null,
     });
-    expect(choose({})).toMatchObject({ primary: "heuristic:v1" });
+    expect(choose({})).toMatchObject({ primary: "heuristic:v2" });
   });
 
   it("honours an explicit provider and model", () => {
@@ -87,14 +87,14 @@ describe("chooseModels", () => {
       primary: "systemone:ollama:tev1:0.8b",
     });
     expect(choose({ provider: "heuristic" }, { typesafeApiKey: "k" })).toMatchObject({
-      primary: "heuristic:v1",
+      primary: "heuristic:v2",
     });
   });
 
   it("falls back to the rules when the chosen provider is not configured, or refuses when told not to", () => {
     const fallback = choose({ provider: "typesafe" });
     expect(fallback).toMatchObject({
-      primary: "heuristic:v1",
+      primary: "heuristic:v2",
       notes: [expect.stringContaining("typesafe unavailable")],
     });
     expect(choose({ provider: "typesafe", fallbackToHeuristic: false })).toMatch(/API key/);

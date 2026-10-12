@@ -52,15 +52,20 @@ export function session(): SessionMessage[] {
   ];
 }
 
-/** A SystemOne server answering every question with `answer`. */
-export function server(answer: number): HttpTransport {
+/** A SystemOne server answering each question (`call_t1`, `result_t1`, ...) with `answer(name)`. */
+export function serverAnswering(answer: (name: string) => number): HttpTransport {
   return async (request) => {
     const body = JSON.parse(request.body) as { questions: Record<string, unknown> };
     const answers = Object.fromEntries(
-      Object.keys(body.questions).map((name) => [name, { noul: answer }]),
+      Object.keys(body.questions).map((name) => [name, { noul: answer(name) }]),
     );
     return { status: 200, ok: true, text: JSON.stringify({ answers }) };
   };
+}
+
+/** A SystemOne server answering every question with `answer`. */
+export function server(answer: number): HttpTransport {
+  return serverAnswering(() => answer);
 }
 
 export const offline: HttpTransport = async () => {

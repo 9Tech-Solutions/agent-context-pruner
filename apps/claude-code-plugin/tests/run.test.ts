@@ -2,7 +2,7 @@ import { describe, expect, it } from "vite-plus/test";
 import { resolveHookConfig } from "../src/config.ts";
 import { compactSession } from "../src/run.ts";
 import { decisionLogLines, summarize } from "../src/summary.ts";
-import { offline, server, session } from "./fixtures.ts";
+import { offline, server, serverAnswering, session } from "./fixtures.ts";
 
 const options = { preserveRecentMessages: 2 };
 
@@ -17,16 +17,33 @@ describe("compactSession", () => {
     );
     if (outcome.kind !== "replaced") throw new Error(outcome.reason);
 
-    expect(outcome.result.decisions.map((d) => d.action)).toEqual([
-      "drop_call",
-      "drop_result",
-      "drop_result",
-    ]);
+    expect(outcome.result.decisions.map((d) => d.action)).toEqual(["drop_call", "keep", "keep"]);
     expect(outcome.messages[0]).toBe(input[0]);
     expect(outcome.messages.at(-1)).toBe(input.at(-1));
     expect(outcome.messages.some((m) => m.toolUses.some((t) => t.tool_use_id === "r1"))).toBe(
       false,
     );
+    const grep = outcome.messages.find((m) => m.toolResults?.[0]?.tool_use_id === "g1");
+    expect(grep).toBe(input[4]);
+    const note = outcome.messages.find((m) => m.text.includes("removed tool call Read"));
+    expect(note).toMatchObject({ role: "user", toolUses: [] });
+    expect(note?.text).toContain("file_path=src/a.ts (8000 chars of output); re-run it if needed");
+    expect(outcome.log.at(-1)).toMatch(
+      /^decisions: 3 scored, 2 kept, 0 truncated, 1 dropped at threshold 0\.50; keep-call median [\d.]+ \([\d.]+ to [\d.]+\), keep-result median /,
+    );
+    expect(outcome.log.some((line) => line.includes("t1:Read"))).toBe(false);
+  });
+
+  it("maps a truncated result back as a new row without the engine's handle", async () => {
+    const config = resolveHookConfig({ ...options, provider: "typesafe", apiKey: "k" });
+    const keepCalls = serverAnswering((name) => (name.startsWith("call_") ? 0.9 : 0.1));
+    const outcome = await compactSession(session(), config, {}, keepCalls);
+    if (outcome.kind !== "replaced") throw new Error(outcome.reason);
+    expect(outcome.result.decisions.map((d) => d.action)).toEqual([
+      "drop_result",
+      "drop_result",
+      "drop_result",
+    ]);
     const grep = outcome.messages.find((m) => m.toolResults?.[0]?.tool_use_id === "g1");
     expect(grep?.handle).toBeUndefined();
     expect(grep?.toolResults?.[0]).toEqual({
@@ -34,13 +51,6 @@ describe("compactSession", () => {
       text: expect.stringContaining("[agent-context-pruner truncated"),
       isError: false,
     });
-    const note = outcome.messages.find((m) => m.text.includes("removed tool call Read"));
-    expect(note).toMatchObject({ role: "user", toolUses: [] });
-    expect(note?.text).toContain("file_path=src/a.ts (8000 chars of output); re-run it if needed");
-    expect(outcome.log.at(-1)).toMatch(
-      /^decisions: 3 scored, 0 kept, 2 truncated, 1 dropped at threshold 0\.50; keep-call median [\d.]+ \([\d.]+ to [\d.]+\), keep-result median /,
-    );
-    expect(outcome.log.some((line) => line.includes("t1:Read"))).toBe(false);
   });
 
   it("uses a SystemOne model when one is configured", async () => {
@@ -56,7 +66,7 @@ describe("compactSession", () => {
     const outcome = await compactSession(session(), config, {}, offline);
     expect(outcome.kind).toBe("replaced");
     expect(outcome.log[0]).toMatch(
-      /systemone:typesafe:jev-latest failed \(.*ECONNREFUSED\); retrying with heuristic:v1/,
+      /systemone:typesafe:jev-latest failed \(.*ECONNREFUSED\); retrying with heuristic:v2/,
     );
   });
 
@@ -94,7 +104,7 @@ describe("summary", () => {
     );
     if (outcome.kind !== "replaced") throw new Error(outcome.reason);
     expect(summarize(outcome.result)).toMatch(
-      /^\d+% reduction; 2 results truncated, 1 calls dropped; heuristic:v1, 0 request\(s\)$/,
+      /^\d+% reduction; 2 kept, 1 calls dropped; heuristic:v2, 0 request\(s\)$/,
     );
     const many = {
       ...outcome.result,
