@@ -39,6 +39,9 @@ direction. `packages/eval` depends on the domain only.
 
 ## The Claude Code plugin
 
+- Bump `version` in `plugin/.claude-plugin/plugin.json` (and the package's `package.json`) in
+  every commit that changes what users get. `claude plugin update` compares that field only:
+  a new commit at the same version answers "already at the latest version" and installs nothing.
 - A hooks module may import only files inside its plugin folder, so `vp pack` bundles
   `src/register.ts` and both packages into `plugin/hooks/pruner.js`. That file is generated
   and committed: rebuild it (`bun run ready` does) and commit it with any change under
