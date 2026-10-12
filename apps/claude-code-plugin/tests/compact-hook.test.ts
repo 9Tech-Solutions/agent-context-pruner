@@ -1,6 +1,6 @@
 import type { Engine, SessionCompactInput, SessionCompactResult } from "claude-code";
 import { describe, expect, it } from "vite-plus/test";
-import { handleCompact, PRECOMPUTE_SKIP, probeOf } from "../src/compact-hook.ts";
+import { DISCARD_NOTE, handleCompact, PRECOMPUTE_SKIP, probeOf } from "../src/compact-hook.ts";
 import { resolveHookConfig } from "../src/config.ts";
 import { session } from "./fixtures.ts";
 
@@ -47,7 +47,9 @@ describe("session.compact hook", () => {
   it("lets core run the PreCompact hooks on a stand-in, then answers with the pruned history", async () => {
     const { e, log, seen, result } = await run({}, summary);
     expect(seen).toHaveLength(1);
-    expect(seen[0]?.instructions).toBe("keep x");
+    expect(seen[0]?.instructions).toBe(`keep x
+
+${DISCARD_NOTE}`);
     expect(seen[0]?.messages).toEqual(probeOf(e.messages));
     expect(seen[0]?.messages.every((m) => m.handle === undefined && m.toolUses.length === 0)).toBe(
       true,
@@ -59,6 +61,17 @@ describe("session.compact hook", () => {
     expect(
       log.some((line) => /^PreCompact hooks ran through core compaction in \d+ ms$/.test(line)),
     ).toBe(true);
+  });
+
+  it("tells core its summary is discarded and logs what that summary cost", async () => {
+    const usage = {
+      input_tokens: 900,
+      output_tokens: 12,
+      cache_creation_input_tokens: 0,
+      cache_read_input_tokens: 0,
+    };
+    const { log } = await run({}, { ...summary, usage });
+    expect(log.some((line) => /in \d+ ms, 12 output tokens$/.test(line))).toBe(true);
   });
 
   it("respects a PreCompact hook that blocks the compaction", async () => {

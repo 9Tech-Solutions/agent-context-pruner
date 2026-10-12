@@ -217,6 +217,46 @@ function decideCall(call, score, options) {
 	};
 }
 //#endregion
+//#region ../../packages/domain/src/named.ts
+/** Input keys that hold the file a call works on, across hosts. */
+const PATH_KEYS = [
+	"file_path",
+	"path",
+	"filePath",
+	"notebook_path"
+];
+/** The file a call works on, read from the first path key it has, with forward slashes. */
+function callPath(input, keys = PATH_KEYS) {
+	const value = keys.map((key) => input[key]).find((v) => typeof v === "string");
+	return typeof value === "string" ? value.trim().replace(/\\/g, "/") : void 0;
+}
+/** Path-like words of the instructions (`src/auth.ts`, `README.md`), lower-cased with forward slashes. */
+function namedPaths(instructions) {
+	return (instructions.match(/[\w.@~-]*[./\\][\w./\\@~-]+/g) ?? []).map((word) => word.replace(/\\/g, "/").replace(/[.,;:]+$/, "").toLowerCase()).filter((word) => word.length >= 3);
+}
+/** Whether `path` is one the person named: the same path, or one ending in `/<named>`. */
+function isNamed(path, named) {
+	const lower = path.toLowerCase();
+	return named.some((word) => lower === word || lower.endsWith(`/${word}`));
+}
+/**
+* Pins the calls on files the person named in the compaction's instructions
+* (`/compact keep src/auth.ts`), so they stay whole whatever a model scores:
+* what the person asked to keep is not left to a model's judgment.
+*/
+function pinNamed(calls, instructions) {
+	const named = namedPaths(instructions);
+	if (named.length === 0) return [...calls];
+	return calls.map((call) => {
+		if (call.pinned) return call;
+		const path = callPath(call.input);
+		return path && isNamed(path, named) ? {
+			...call,
+			pinned: true
+		} : call;
+	});
+}
+//#endregion
 //#region ../../packages/domain/src/options.ts
 const DEFAULT_OPTIONS = {
 	goal: "",
@@ -630,7 +670,7 @@ async function compact(messages, model, options = {}) {
 		keepThreshold: model.capabilities.defaultKeepThreshold,
 		maxStateTokens: model.capabilities.maxStateTokens
 	});
-	const calls = collectToolCalls(messages, resolved.preserveRecentMessages);
+	const calls = pinNamed(collectToolCalls(messages, resolved.preserveRecentMessages), resolved.instructions);
 	const scored = await scoreCandidates(messages, calls, model, resolved);
 	if (!scored.ok) return scored;
 	const decisions = calls.map((call) => decideCall(call, scored.value.scores.get(call.id) ?? KEEP_ALL, resolved));
@@ -702,12 +742,6 @@ const WRITE_TOOLS = [
 	"edit_file",
 	"apply_patch"
 ];
-const PATH_KEYS = [
-	"file_path",
-	"path",
-	"filePath",
-	"notebook_path"
-];
 const KEEP = {
 	keepCall: 1,
 	keepResult: 1
@@ -720,32 +754,19 @@ const DROP_RESULT = {
 	keepCall: .9,
 	keepResult: .1
 };
-/** Path-like words of the instructions (`src/auth.ts`, `README.md`), lower-cased with forward slashes. */
-function namedPaths(instructions) {
-	return (instructions.match(/[\w.@~-]*[./\\][\w./\\@~-]+/g) ?? []).map((word) => word.replace(/\\/g, "/").replace(/[.,;:]+$/, "").toLowerCase()).filter((word) => word.length >= 3);
-}
-function rulesOf(options, instructions) {
+function rulesOf(options) {
 	const reads = new Set((options.readTools ?? READ_TOOLS).map((t) => t.toLowerCase()));
 	const writes = new Set((options.writeTools ?? WRITE_TOOLS).map((t) => t.toLowerCase()));
 	const keys = options.pathKeys ?? PATH_KEYS;
-	const named = namedPaths(instructions);
 	return {
 		isRead: (tool) => reads.has(tool.toLowerCase()),
 		isWrite: (tool) => writes.has(tool.toLowerCase()),
-		pathOf: (call) => {
-			const value = keys.map((key) => call.input[key]).find((v) => typeof v === "string");
-			return typeof value === "string" ? value.trim().replace(/\\/g, "/") : void 0;
-		},
-		largeResultChars: options.largeResultChars ?? 4e3,
-		named: (path) => {
-			const lower = path.toLowerCase();
-			return named.some((word) => lower === word || lower.endsWith(`/${word}`));
-		}
+		pathOf: (call) => callPath(call.input, keys),
+		largeResultChars: options.largeResultChars ?? 4e3
 	};
 }
 /**
 * Scores one call from what happened after it:
-* a file the person named in the compaction's instructions stays,
 * a file read again later is superseded (drop the call),
 * a file changed later has stale contents (keep the call, truncate the result),
 * a failed call retried successfully is settled (truncate the result),
@@ -754,7 +775,6 @@ function rulesOf(options, instructions) {
 function scoreCall(call, calls, rules) {
 	const later = calls.filter((other) => other.callIndex > call.callIndex);
 	const path = rules.pathOf(call);
-	if (path && rules.named(path)) return KEEP;
 	const touches = (other, kind) => kind(other.tool) && rules.pathOf(other) === path;
 	if (path && rules.isRead(call.tool)) {
 		if (later.some((other) => touches(other, rules.isRead))) return DROP_CALL;
@@ -769,6 +789,7 @@ function scoreCall(call, calls, rules) {
 * tool calls. Free, offline, and the fallback when a hosted or local model fails.
 */
 function createHeuristicModel(options = {}) {
+	const rules = rulesOf(options);
 	return {
 		id: "heuristic:v1",
 		capabilities: {
@@ -778,7 +799,6 @@ function createHeuristicModel(options = {}) {
 			defaultKeepThreshold: .5
 		},
 		score: async (request) => {
-			const rules = rulesOf(options, request.instructions);
 			const scores = request.candidates.map((call) => [call.id, scoreCall(call, request.calls, rules)]);
 			return ok({
 				scores: new Map(scores),
@@ -1219,6 +1239,8 @@ async function compactSession(messages, config, secrets, transport, instructions
 //#endregion
 //#region src/compact-hook.ts
 const TOAST_MS = 15e3;
+/** Told to core's summarizer of the stand-in: its answer is dropped, so it should be one line. */
+const DISCARD_NOTE = "agent-context-pruner: this summary is discarded unread; reply with one short sentence.";
 /** The answer to a `precompute` dispatch: pruning runs when the compaction itself runs. */
 const PRECOMPUTE_SKIP = "agent-context-pruner prunes when the compaction runs";
 function notify($, text) {
@@ -1276,15 +1298,21 @@ function probeOf(messages) {
 * Classic PreCompact hooks run only inside core's compaction, and a plugin
 * cannot raise them itself. So core compacts the stand-in transcript: its
 * PreCompact hooks run as they always do, and its summary is then dropped.
+* Core is told so (DISCARD_NOTE), which keeps that summary to a line.
 * Answers core's skip when a hook blocked the compaction, null otherwise.
 */
 async function runPreCompactHooks($, e, next) {
 	const started = Date.now();
+	const instructions = e.instructions ? `${e.instructions}
+
+${DISCARD_NOTE}` : DISCARD_NOTE;
 	const core = await next({
 		...e,
+		instructions,
 		messages: probeOf(e.messages)
 	});
-	$.ui.log(`PreCompact hooks ran through core compaction in ${Date.now() - started} ms`);
+	const usage = "usage" in core && core.usage ? `, ${core.usage.output_tokens} output tokens` : "";
+	$.ui.log(`PreCompact hooks ran through core compaction in ${Date.now() - started} ms${usage}`);
 	return "skip" in core && typeof core.skip === "string" ? { skip: core.skip } : null;
 }
 async function finish($, e, next, outcome, config) {

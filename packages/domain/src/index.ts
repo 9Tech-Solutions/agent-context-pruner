@@ -1,6 +1,7 @@
 export * from "./apply.ts";
 export * from "./compact.ts";
 export * from "./decision.ts";
+export * from "./named.ts";
 export * from "./options.ts";
 export * from "./ports/decision-model.ts";
 export * from "./result.ts";

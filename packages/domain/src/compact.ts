@@ -1,5 +1,6 @@
 import { applyDecisions, messageChars } from "./apply.ts";
 import { decideCall, type CallDecision, type CallScore } from "./decision.ts";
+import { pinNamed } from "./named.ts";
 import { resolveOptions, type CompactOptions, type ResolvedCompactOptions } from "./options.ts";
 import type {
   DecisionModel,
@@ -168,7 +169,8 @@ export async function compact(
     keepThreshold: model.capabilities.defaultKeepThreshold,
     maxStateTokens: model.capabilities.maxStateTokens,
   });
-  const calls = collectToolCalls(messages, resolved.preserveRecentMessages);
+  const collected = collectToolCalls(messages, resolved.preserveRecentMessages);
+  const calls = pinNamed(collected, resolved.instructions);
   const scored = await scoreCandidates(messages, calls, model, resolved);
   if (!scored.ok) return scored;
   const decisions = calls.map((call) =>

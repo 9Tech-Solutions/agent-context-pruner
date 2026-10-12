@@ -57,8 +57,9 @@ file in this repository.
 ### Telling it what to keep
 
 Text after `/compact` reaches the decision model as `instructions`, next to the goal (your last
-three prompts): `/compact keep the auth plan and src/auth/session.ts`. Models that read the
-conversation weigh it when scoring each call; the rules-based model keeps any file it names.
+three prompts): `/compact keep the auth plan and src/auth/session.ts`. Any file it names is kept
+whole with every model, without asking the model; models that read the conversation weigh the
+rest of the text when scoring each call.
 
 ### With ECC strategic-compact
 
@@ -72,8 +73,9 @@ together:
 - Classic `PreCompact` hooks still run, ECC's `pre-compact.js` included. Claude Code fires them only
   inside its own compaction, so before the pruned history is installed the plugin lets that
   compaction run on a short stand-in transcript (the last four text messages) and discards its
-  summary. A hook that blocks the compaction is respected. The cost is one small summary request
-  per compaction, timed in the log; set `preCompactHooks` to `skip` to trade the hooks for speed.
+  summary, after telling it the summary is discarded so it answers in a line. A hook that blocks
+  the compaction is respected. The cost is one small summary request per compaction, timed in the
+  log with its output tokens; set `preCompactHooks` to `skip` to trade the hooks for speed.
 
 ## How it works
 

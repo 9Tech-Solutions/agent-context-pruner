@@ -43,8 +43,21 @@ declare module "claude-code" {
     readonly messages: readonly SessionMessage[];
   }
 
+  export interface ModelUsage {
+    input_tokens: number;
+    output_tokens: number;
+    cache_creation_input_tokens: number;
+    cache_read_input_tokens: number;
+  }
+
   export type SessionCompactResult =
-    | { messages: readonly SessionMessage[]; tokensBefore?: number; tokensAfter?: number }
+    | {
+        messages: readonly SessionMessage[];
+        tokensBefore?: number;
+        tokensAfter?: number;
+        /** The summarizer's token counts, when core ran it. */
+        usage?: ModelUsage;
+      }
     | { skip: string; messages?: undefined };
 
   export interface HttpInit {

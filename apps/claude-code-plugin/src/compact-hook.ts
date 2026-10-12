@@ -16,6 +16,10 @@ type Pruned = Extract<SessionOutcome, { kind: "replaced" }>;
 const TOAST_MS = 15_000;
 const PROBE_MESSAGES = 4;
 
+/** Told to core's summarizer of the stand-in: its answer is dropped, so it should be one line. */
+export const DISCARD_NOTE =
+  "agent-context-pruner: this summary is discarded unread; reply with one short sentence.";
+
 /** The answer to a `precompute` dispatch: pruning runs when the compaction itself runs. */
 export const PRECOMPUTE_SKIP = "agent-context-pruner prunes when the compaction runs";
 
@@ -66,6 +70,7 @@ export function probeOf(messages: readonly SessionMessage[]): SessionMessage[] {
  * Classic PreCompact hooks run only inside core's compaction, and a plugin
  * cannot raise them itself. So core compacts the stand-in transcript: its
  * PreCompact hooks run as they always do, and its summary is then dropped.
+ * Core is told so (DISCARD_NOTE), which keeps that summary to a line.
  * Answers core's skip when a hook blocked the compaction, null otherwise.
  */
 async function runPreCompactHooks(
@@ -74,8 +79,14 @@ async function runPreCompactHooks(
   next: Next,
 ): Promise<{ skip: string } | null> {
   const started = Date.now();
-  const core = await next({ ...e, messages: probeOf(e.messages) });
-  $.ui.log(`PreCompact hooks ran through core compaction in ${Date.now() - started} ms`);
+  const instructions = e.instructions
+    ? `${e.instructions}
+
+${DISCARD_NOTE}`
+    : DISCARD_NOTE;
+  const core = await next({ ...e, instructions, messages: probeOf(e.messages) });
+  const usage = "usage" in core && core.usage ? `, ${core.usage.output_tokens} output tokens` : "";
+  $.ui.log(`PreCompact hooks ran through core compaction in ${Date.now() - started} ms${usage}`);
   return "skip" in core && typeof core.skip === "string" ? { skip: core.skip } : null;
 }
 
