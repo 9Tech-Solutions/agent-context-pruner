@@ -35,6 +35,9 @@ direction. `packages/eval` depends on the domain only.
 - `apps/cli` (`@9tech.solutions/pruner-cli`): `agent-context-pruner eval`. Reads Claude Code
   `.jsonl` sessions (`src/transcript.ts`, split at each `compact_boundary`), builds models from
   environment keys, and prints the eval report. Run from source with `bun apps/cli/src/main.ts`.
+- `servers/systemone-server` (Python, uv, outside the Bun workspace): a `/v1/systemone` server
+  around any model with `system_one(state, questions)`, such as LiquidAI d1-3B. Standard library
+  only; torch and transformers come from the `hf` extra. `uv run pytest` inside it.
 - `apps/` (planned): Codex and Antigravity hosts.
 
 ## The Claude Code plugin

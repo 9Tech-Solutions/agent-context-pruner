@@ -57,3 +57,7 @@ packages/*/tests/**/*.d.ts
 
 # Claude Code writes these when it loads the plugin with --plugin-dir
 apps/claude-code-plugin/plugin/tsconfig.json
+
+# Python tool caches
+.ruff_cache/
+.pytest_cache/

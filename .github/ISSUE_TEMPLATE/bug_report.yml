@@ -1,0 +1,32 @@
+name: Bug report
+description: Something the plugin, the CLI or a library does wrong
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Never paste API keys or transcript content you are not allowed to share. Logs from `claude --debug` lines that mention agent-context-pruner are usually enough.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what you expected
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Plugin version (from /plugin), Claude Code version, OS
+      placeholder: "plugin 0.3.0, Claude Code 2.1.296, Windows 11"
+    validations:
+      required: true
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Provider
+      options: [auto, typesafe, cloudflare, ollama, custom, heuristic]
+  - type: textarea
+    id: log
+    attributes:
+      label: The plugin's log lines
+      description: The `agent-context-pruner:` lines around the compaction
+      render: text

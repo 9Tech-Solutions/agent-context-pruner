@@ -9,7 +9,9 @@ The decision model is swappable:
 
 - **Hosted:** TypeSafe Jev, Cloudflare Clef and Clef-Flash, or any endpoint that speaks the
   SystemOne request format.
-- **Local:** Ollama, SGLang, laya-serve, or any server exposing `/v1/systemone`.
+- **Local:** Ollama, SGLang, laya-serve, any server exposing `/v1/systemone`, or a Hugging Face
+  model with a `system_one()` method (such as LiquidAI d1-3B) through the included
+  [server](servers/systemone-server).
 - **No model:** a rules-based scorer that runs offline and doubles as the fallback. It ranks by
   how long ago a call ran, the strongest signal of reuse we have measured (see below).
 
@@ -37,14 +39,14 @@ From then on `/compact` and auto-compaction go through the plugin. A toast says 
 
 ### Choosing the decision model
 
-| `provider`   | Uses                                    | Configure                                              |
-| ------------ | --------------------------------------- | ------------------------------------------------------ |
-| `auto`       | the first one available, in table order | nothing                                                |
-| `typesafe`   | TypeSafe Jev                            | `TYPESAFE_API_KEY` or the `apiKey` option              |
-| `cloudflare` | Cloudflare Workers AI Clef              | `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`     |
-| `ollama`     | a local Ollama 0.35+                    | `model` (default `nimble`), `baseUrl` if not localhost |
-| `custom`     | any `/v1/systemone` server              | `baseUrl` and `model`                                  |
-| `heuristic`  | the built-in rules, no network          | nothing                                                |
+| `provider`   | Uses                                                               | Configure                                              |
+| ------------ | ------------------------------------------------------------------ | ------------------------------------------------------ |
+| `auto`       | the first one available, in table order                            | nothing                                                |
+| `typesafe`   | TypeSafe Jev                                                       | `TYPESAFE_API_KEY` or the `apiKey` option              |
+| `cloudflare` | Cloudflare Workers AI Clef                                         | `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`     |
+| `ollama`     | a local Ollama 0.35+                                               | `model` (default `nimble`), `baseUrl` if not localhost |
+| `custom`     | any `/v1/systemone` server ([local one](servers/systemone-server)) | `baseUrl` and `model`                                  |
+| `heuristic`  | the built-in rules, no network                                     | nothing                                                |
 
 `auto` tries TypeSafe, then Cloudflare, then the rules. When the chosen model is unavailable or
 fails, the plugin prunes with the rules instead (`fallbackToHeuristic`, on by default).
@@ -162,15 +164,34 @@ Measurements so far (October 2026, one person's sessions, so a first reading, no
   re-reads), which is also its best net saving, so it stays. A lower Jev threshold mostly keeps
   everything: its scores sit between 0.05 and 0.25.
 
+## Known limitations
+
+- Claude Code records a plugin-handled compaction's starting size (`preTokens`) as the size of
+  the short stand-in transcript the plugin hands it so classic `PreCompact` hooks run, not the
+  size of the real transcript.
+- With `preCompactHooks: run`, each compaction also waits for Claude Code's own summary of that
+  stand-in, which is thrown away: about 13 s and 800 output tokens in our measurement.
+- The evaluation counts text the model wrote again word for word. A result that informed a
+  decision without being quoted counts as unused.
+- Function-hook plugins are early access in Claude Code, and their API may change between
+  releases.
+
+## Roadmap
+
+- Codex and Antigravity hosts.
+- A Microsoft Decision-1 profile, once Foundry documents its request format.
+- Evaluation data from more people's sessions.
+
 ## Repository layout
 
-| Path                      | Package                               | What it holds                                                        |
-| ------------------------- | ------------------------------------- | -------------------------------------------------------------------- |
-| `packages/domain`         | `@9tech.solutions/pruner-domain`      | Core logic and the `DecisionModel` port, zero deps                   |
-| `packages/models`         | `@9tech.solutions/pruner-models`      | SystemOne adapter with profiles, rules-based model                   |
-| `packages/eval`           | `@9tech.solutions/pruner-eval`        | Replays sessions and measures a model's keep threshold               |
-| `apps/claude-code-plugin` | `@9tech.solutions/pruner-claude-code` | Claude Code plugin: hook source and the installable `plugin/` folder |
-| `apps/cli`                | `@9tech.solutions/pruner-cli`         | `agent-context-pruner eval`: the evaluation from the command line    |
+| Path                       | Package                               | What it holds                                                        |
+| -------------------------- | ------------------------------------- | -------------------------------------------------------------------- |
+| `packages/domain`          | `@9tech.solutions/pruner-domain`      | Core logic and the `DecisionModel` port, zero deps                   |
+| `packages/models`          | `@9tech.solutions/pruner-models`      | SystemOne adapter with profiles, rules-based model                   |
+| `packages/eval`            | `@9tech.solutions/pruner-eval`        | Replays sessions and measures a model's keep threshold               |
+| `apps/claude-code-plugin`  | `@9tech.solutions/pruner-claude-code` | Claude Code plugin: hook source and the installable `plugin/` folder |
+| `apps/cli`                 | `@9tech.solutions/pruner-cli`         | `agent-context-pruner eval`: the evaluation from the command line    |
+| `servers/systemone-server` | `pruner-systemone-server` (Python)    | Local `/v1/systemone` server for models with `system_one()`          |
 
 ## Development
 
@@ -181,7 +202,8 @@ bun install
 bun run ready   # format, lint, type check, test, build
 ```
 
-See [AGENTS.md](AGENTS.md) for the architecture rules.
+See [AGENTS.md](AGENTS.md) for the architecture rules, [CONTRIBUTING.md](CONTRIBUTING.md) for
+adding a model, and [SECURITY.md](SECURITY.md) for reporting a leak of keys or transcripts.
 
 ## License
 

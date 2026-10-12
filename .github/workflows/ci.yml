@@ -1,0 +1,35 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  typescript:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.3
+      - run: bun install --frozen-lockfile
+      - name: Format, lint, type check, test, build
+        run: bun run ready
+      - name: The committed plugin bundle matches the source
+        run: git diff --exit-code -- apps/claude-code-plugin/plugin/hooks/pruner.js
+
+  systemone-server:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: servers/systemone-server
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+      - run: uv sync --locked
+      - run: uv run ruff check . && uv run ruff format --check .
+      - run: uv run pytest -q

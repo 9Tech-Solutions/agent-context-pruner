@@ -1,0 +1,23 @@
+name: Support a decision model
+description: Ask for a model or provider the plugin cannot use yet
+labels: [model]
+body:
+  - type: input
+    id: model
+    attributes:
+      label: Model or provider
+      placeholder: "Microsoft Decision-1 on Foundry"
+    validations:
+      required: true
+  - type: textarea
+    id: api
+    attributes:
+      label: How it is called
+      description: Endpoint, request and response shape, limits (context window, questions per request). Link the docs.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why this one
+      description: Cost, privacy, quality. An `agent-context-pruner eval` result helps most.
