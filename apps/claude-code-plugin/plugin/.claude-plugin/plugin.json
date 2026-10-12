@@ -13,14 +13,14 @@
     "provider": {
       "type": "string",
       "title": "Decision model provider",
-      "description": "auto picks TypeSafe when TYPESAFE_API_KEY or an API key is set, then Cloudflare when CLOUDFLARE_API_TOKEN and an account id are set, else the rules-based model.",
+      "description": "auto: TypeSafe when TYPESAFE_API_KEY or an API key is set, then Cloudflare when CLOUDFLARE_API_TOKEN and an account id are set, else the rules-based model (no network).",
       "options": ["auto", "typesafe", "cloudflare", "ollama", "custom", "heuristic"],
       "default": "auto"
     },
     "model": {
       "type": "string",
       "title": "Model name",
-      "description": "Model sent to the provider. Leave empty for its default (jev-latest, clef, nimble)."
+      "description": "Leave empty for the provider's default: jev-latest (typesafe), clef (cloudflare), nimble (ollama)."
     },
     "apiKey": {
       "type": "string",
@@ -28,63 +28,75 @@
       "description": "Key for the chosen provider. Leave empty to use TYPESAFE_API_KEY or CLOUDFLARE_API_TOKEN from the environment.",
       "sensitive": true
     },
-    "baseUrl": {
-      "type": "string",
-      "title": "Server URL",
-      "description": "Root of a local or custom SystemOne server, for example http://localhost:11434. The plugin appends /v1/systemone."
-    },
-    "accountId": {
-      "type": "string",
-      "title": "Cloudflare account id",
-      "description": "For the cloudflare provider. Leave empty to use CLOUDFLARE_ACCOUNT_ID."
-    },
     "keepThreshold": {
-      "type": "number",
+      "type": "string",
       "title": "Keep threshold",
-      "description": "Minimum keep probability for a tool call or result to stay. Leave empty for the model's own default."
-    },
-    "preserveRecentMessages": {
-      "type": "number",
-      "title": "Recent messages to preserve",
-      "description": "Newest messages never touched.",
-      "default": 6
+      "description": "A tool call or result stays when the model's keep score reaches this. Lower keeps more. model default uses the provider's calibrated value.",
+      "options": ["model default", "0.1", "0.15", "0.2", "0.25", "0.3", "0.4", "0.5", "0.6", "0.7"],
+      "default": "model default"
     },
     "compactAtPercent": {
-      "type": "number",
-      "title": "Auto-compact at context percentage",
-      "description": "Context percentage at which the plugin asks for a compaction after a turn. 0 turns this off.",
-      "default": 60
-    },
-    "minReductionRatio": {
-      "type": "number",
-      "title": "Minimum reduction ratio",
-      "description": "Share of characters that must be removed for the pruned history to replace the built-in summary.",
-      "default": 0.25
-    },
-    "truncateHeadChars": {
-      "type": "number",
-      "title": "Truncated result head",
-      "description": "Characters of a dropped tool result kept before its note.",
-      "default": 300
-    },
-    "fallbackToHeuristic": {
-      "type": "boolean",
-      "title": "Fall back to the rules-based model",
-      "description": "When the chosen model is unavailable or fails, prune with the rules-based model instead of going straight to the built-in summary.",
-      "default": true
-    },
-    "noteDroppedCalls": {
-      "type": "boolean",
-      "title": "Note dropped calls",
-      "description": "Leave a one-line note where a dropped tool call's result was, so the model knows what was removed and can re-run it.",
-      "default": true
+      "type": "string",
+      "title": "Auto-compact at context %",
+      "description": "After a turn, compact once context use reaches this percentage. off leaves compaction to /compact and Claude Code.",
+      "options": ["off", "50", "60", "70", "80", "90"],
+      "default": "60"
     },
     "preCompactHooks": {
       "type": "string",
       "title": "PreCompact hooks",
-      "description": "run: before the pruned history replaces the transcript, let Claude Code run its classic PreCompact hooks (ECC's pre-compact, your own); costs one small summary request. skip: faster, but those hooks do not run.",
+      "description": "run: Claude Code's classic PreCompact hooks (ECC's pre-compact, your own) still run, at the cost of one small summary request. skip: faster, those hooks do not run.",
       "options": ["run", "skip"],
       "default": "run"
+    },
+    "preserveRecentMessages": {
+      "type": "string",
+      "title": "Recent messages to protect",
+      "description": "The newest messages are never pruned. Each tool call and its result count as separate messages.",
+      "options": ["2", "4", "6", "10", "20", "40"],
+      "default": "6"
+    },
+    "minReductionRatio": {
+      "type": "string",
+      "title": "Minimum reduction",
+      "description": "When pruning removes less than this share of the transcript, Claude Code's built-in summary runs instead.",
+      "options": ["10%", "25%", "40%", "50%"],
+      "default": "25%"
+    },
+    "truncateHeadChars": {
+      "type": "string",
+      "title": "Truncated result length",
+      "description": "Characters kept from the start of a truncated tool result.",
+      "options": ["0", "150", "300", "600", "1000"],
+      "default": "300"
+    },
+    "noteDroppedCalls": {
+      "type": "boolean",
+      "title": "Note dropped calls",
+      "description": "Leave a one-line note where a dropped call's result was, so the model knows what was removed and can re-run it.",
+      "default": true
+    },
+    "fallbackToHeuristic": {
+      "type": "boolean",
+      "title": "Fall back to the rules-based model",
+      "description": "When the chosen model is unavailable or fails, prune with the rules-based model instead of going straight to Claude Code's summary.",
+      "default": true
+    },
+    "logEachDecision": {
+      "type": "boolean",
+      "title": "Log every decision",
+      "description": "Print each scored call's keep scores after a compaction. Off prints one summary line.",
+      "default": false
+    },
+    "baseUrl": {
+      "type": "string",
+      "title": "Server URL",
+      "description": "ollama and custom only: the server root, for example http://localhost:11434. /v1/systemone is appended."
+    },
+    "accountId": {
+      "type": "string",
+      "title": "Cloudflare account id",
+      "description": "cloudflare only. Leave empty to use CLOUDFLARE_ACCOUNT_ID."
     }
   }
 }

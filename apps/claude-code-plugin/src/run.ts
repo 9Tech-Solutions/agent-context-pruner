@@ -40,7 +40,7 @@ export async function compactSession(
   }
   if (!outcome.ok) return { kind: "fallback", reason: outcome.error.message, log };
   const result = outcome.value;
-  log.push(...decisionLogLines(result));
+  log.push(...decisionLogLines(result, config.logEachDecision));
   if (reductionRatio(result) < config.minReductionRatio) {
     const reason = `below the ${percent(config.minReductionRatio)} minimum: ${summarize(result)}`;
     return { kind: "fallback", reason, log };

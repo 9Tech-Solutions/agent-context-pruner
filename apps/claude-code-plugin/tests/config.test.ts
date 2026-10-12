@@ -32,6 +32,27 @@ describe("resolveHookConfig", () => {
     expect(config.compact).toMatchObject({ keepThreshold: 0.6, preserveRecentMessages: undefined });
     expect(resolveHookConfig({ provider: "gpt" }).provider).toBe("auto");
   });
+
+  it("reads picker values, percentages, off, and numbers saved before the pickers", () => {
+    const config = resolveHookConfig({
+      keepThreshold: "0.25",
+      compactAtPercent: "off",
+      minReductionRatio: "40%",
+      preserveRecentMessages: "10",
+      truncateHeadChars: 600,
+      logEachDecision: true,
+    });
+    expect(config).toMatchObject({
+      compactAtPercent: 0,
+      minReductionRatio: 0.4,
+      logEachDecision: true,
+      compact: { keepThreshold: 0.25, preserveRecentMessages: 10, truncateHeadChars: 600 },
+    });
+    expect(resolveHookConfig({ keepThreshold: "model default" }).compact.keepThreshold).toBe(
+      undefined,
+    );
+    expect(resolveHookConfig({ compactAtPercent: "" }).compactAtPercent).toBe(60);
+  });
 });
 
 describe("chooseModels", () => {

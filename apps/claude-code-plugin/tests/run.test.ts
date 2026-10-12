@@ -37,7 +37,10 @@ describe("compactSession", () => {
     const note = outcome.messages.find((m) => m.text.includes("removed tool call Read"));
     expect(note).toMatchObject({ role: "user", toolUses: [] });
     expect(note?.text).toContain("file_path=src/a.ts (8000 chars of output); re-run it if needed");
-    expect(outcome.log.at(-1)).toMatch(/^decisions: t1:Read:drop_call/);
+    expect(outcome.log.at(-1)).toMatch(
+      /^decisions: 3 scored, 0 kept, 2 truncated, 1 dropped at threshold 0\.50; keep-call median [\d.]+ \([\d.]+ to [\d.]+\), keep-result median /,
+    );
+    expect(outcome.log.some((line) => line.includes("t1:Read"))).toBe(false);
   });
 
   it("uses a SystemOne model when one is configured", async () => {
@@ -100,9 +103,11 @@ describe("summary", () => {
         id: `t${i}`,
       })),
     };
-    const lines = decisionLogLines(many);
-    expect(lines.length).toBeGreaterThan(1);
-    expect(lines[0]).toMatch(/^decisions \(1\/\d+\): /);
+    expect(decisionLogLines(many)).toHaveLength(1);
+    const lines = decisionLogLines(many, true);
+    expect(lines.length).toBeGreaterThan(2);
+    expect(lines[0]).toMatch(/^decisions: 200 scored/);
+    expect(lines[1]).toMatch(/^decision detail \(1\/\d+\): t0:Read:drop_call\/call=/);
     expect(lines.every((line) => line.length < 2000)).toBe(true);
   });
 });

@@ -31,6 +31,8 @@ export interface CompactStats {
   readonly resultsDropped: number;
   readonly callsDropped: number;
   readonly pinned: number;
+  /** Threshold the decisions were made at. */
+  readonly keepThreshold: number;
   readonly stateTokens: number;
   /** Which fitting stage the state needed, '' when no state was built. */
   readonly stateStage: string;
@@ -132,6 +134,7 @@ function statsOf(
   after: readonly Message[],
   decisions: readonly CallDecision[],
   scored: Scored,
+  keepThreshold: number,
   started: number,
 ): CompactStats {
   return {
@@ -145,6 +148,7 @@ function statsOf(
     resultsDropped: count(decisions, "result_dropped"),
     callsDropped: count(decisions, "call_dropped"),
     pinned: count(decisions, "pinned"),
+    keepThreshold,
     stateTokens: scored.fitted?.tokens ?? 0,
     stateStage: scored.fitted?.stage ?? "",
     requests: scored.requests,
@@ -179,7 +183,15 @@ export async function compact(
   const kept = applyDecisions(messages, decisions, calls, resolved.truncateHeadChars, {
     noteDroppedCalls: resolved.noteDroppedCalls,
   });
-  const stats = statsOf(model, messages, kept, decisions, scored.value, started);
+  const stats = statsOf(
+    model,
+    messages,
+    kept,
+    decisions,
+    scored.value,
+    resolved.keepThreshold,
+    started,
+  );
   return ok({ messages: kept, decisions, stats });
 }
 

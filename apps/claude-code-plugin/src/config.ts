@@ -28,6 +28,8 @@ export interface HookConfig {
   readonly fallbackToHeuristic: boolean;
   /** Let core run the classic PreCompact hooks before the pruned history replaces the transcript. */
   readonly runPreCompactHooks: boolean;
+  /** Log every scored call's probabilities, not just the summary line. */
+  readonly logEachDecision: boolean;
 }
 
 /** Credentials read from the environment, never from the plugin's source. */
@@ -42,6 +44,7 @@ export const HOOK_DEFAULTS = {
   minReductionRatio: 0.25,
   fallbackToHeuristic: true,
   runPreCompactHooks: true,
+  logEachDecision: false,
 } as const;
 
 function text(options: PluginOptions, key: string): string | undefined {
@@ -49,9 +52,22 @@ function text(options: PluginOptions, key: string): string | undefined {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
 }
 
+/**
+ * A number from a picker value (`"0.25"`, `"25%"` as 0.25, `"off"` as 0) or
+ * from a plain number saved before the field became a picker. Anything else,
+ * such as `"model default"`, is unset.
+ */
 function number(options: PluginOptions, key: string): number | undefined {
   const value = options[key];
-  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+  if (typeof value === "number") return Number.isFinite(value) ? value : undefined;
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim().toLowerCase();
+  if (trimmed === "") return undefined;
+  if (trimmed === "off") return 0;
+  const isPercent = trimmed.endsWith("%");
+  const parsed = Number(isPercent ? trimmed.slice(0, -1) : trimmed);
+  if (!Number.isFinite(parsed)) return undefined;
+  return isPercent ? parsed / 100 : parsed;
 }
 
 function flag(options: PluginOptions, key: string): boolean | undefined {
@@ -82,5 +98,6 @@ export function resolveHookConfig(options: PluginOptions): HookConfig {
     minReductionRatio: number(options, "minReductionRatio") ?? HOOK_DEFAULTS.minReductionRatio,
     fallbackToHeuristic: flag(options, "fallbackToHeuristic") ?? HOOK_DEFAULTS.fallbackToHeuristic,
     runPreCompactHooks: text(options, "preCompactHooks") !== "skip",
+    logEachDecision: flag(options, "logEachDecision") ?? HOOK_DEFAULTS.logEachDecision,
   };
 }

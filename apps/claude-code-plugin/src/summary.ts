@@ -22,15 +22,34 @@ export function summarize(result: CompactResult): string {
   return `${percent(reductionRatio(result))} reduction; ${parts.join(", ") || "no tool calls"}; ${stats.model}${state}, ${stats.requests} request(s)`;
 }
 
-/** Every unpinned decision with both probabilities, split into lines the log can hold. */
-export function decisionLogLines(result: CompactResult): string[] {
-  const entries = result.decisions
-    .filter((d) => d.reason !== "pinned")
-    .map(
-      (d) =>
-        `${d.id}:${d.tool}:${d.action}/call=${d.keepCall.toFixed(2)}/result=${d.keepResult.toFixed(2)}`,
-    );
-  if (entries.length === 0) return ["decisions: (none)"];
+function median(sorted: readonly number[]): number {
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 1 ? sorted[middle]! : (sorted[middle - 1]! + sorted[middle]!) / 2;
+}
+
+/** `median 0.22 (0.14 to 0.36)` for a non-empty list of probabilities. */
+function spread(values: readonly number[]): string {
+  const sorted = [...values].sort((a, b) => a - b);
+  const fixed = (value: number) => value.toFixed(2);
+  return `median ${fixed(median(sorted))} (${fixed(sorted[0]!)} to ${fixed(sorted.at(-1)!)})`;
+}
+
+/** One line: how many calls were scored, what happened to them, and how the scores spread. */
+export function decisionSummary(result: CompactResult): string {
+  const scored = result.decisions.filter((d) => d.reason !== "pinned");
+  const { stats } = result;
+  const pinned = stats.pinned > 0 ? `, ${stats.pinned} pinned` : "";
+  if (scored.length === 0) return `decisions: none scored${pinned}`;
+  const counts = `${stats.kept} kept, ${stats.resultsDropped} truncated, ${stats.callsDropped} dropped`;
+  const call = spread(scored.map((d) => d.keepCall));
+  const keepResult = spread(scored.map((d) => d.keepResult));
+  return (
+    `decisions: ${scored.length} scored, ${counts}${pinned} at threshold ${stats.keepThreshold.toFixed(2)}; ` +
+    `keep-call ${call}, keep-result ${keepResult}`
+  );
+}
+
+function chunk(entries: readonly string[]): string[] {
   const chunks: string[] = [];
   let current = "";
   for (const entry of entries) {
@@ -40,10 +59,26 @@ export function decisionLogLines(result: CompactResult): string[] {
       current = entry;
     } else current = next;
   }
-  chunks.push(current);
-  return chunks.map((chunk, index) =>
-    chunks.length === 1
-      ? `decisions: ${chunk}`
-      : `decisions (${index + 1}/${chunks.length}): ${chunk}`,
-  );
+  if (current) chunks.push(current);
+  return chunks;
+}
+
+/**
+ * The summary line, followed by every unpinned decision with both
+ * probabilities when `eachDecision` is on, split into lines the log can hold.
+ */
+export function decisionLogLines(result: CompactResult, eachDecision = false): string[] {
+  const summary = decisionSummary(result);
+  if (!eachDecision) return [summary];
+  const entries = result.decisions
+    .filter((d) => d.reason !== "pinned")
+    .map(
+      (d) =>
+        `${d.id}:${d.tool}:${d.action}/call=${d.keepCall.toFixed(2)}/result=${d.keepResult.toFixed(2)}`,
+    );
+  const chunks = chunk(entries);
+  return [
+    summary,
+    ...chunks.map((part, index) => `decision detail (${index + 1}/${chunks.length}): ${part}`),
+  ];
 }

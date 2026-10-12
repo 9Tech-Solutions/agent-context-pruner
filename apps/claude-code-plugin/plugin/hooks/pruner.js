@@ -639,7 +639,7 @@ function count(decisions, reason) {
 function chars(messages) {
 	return messages.reduce((sum, message) => sum + messageChars(message), 0);
 }
-function statsOf(model, before, after, decisions, scored, started) {
+function statsOf(model, before, after, decisions, scored, keepThreshold, started) {
 	return {
 		model: model.id,
 		messagesBefore: before.length,
@@ -651,6 +651,7 @@ function statsOf(model, before, after, decisions, scored, started) {
 		resultsDropped: count(decisions, "result_dropped"),
 		callsDropped: count(decisions, "call_dropped"),
 		pinned: count(decisions, "pinned"),
+		keepThreshold,
 		stateTokens: scored.fitted?.tokens ?? 0,
 		stateStage: scored.fitted?.stage ?? "",
 		requests: scored.requests,
@@ -678,7 +679,7 @@ async function compact(messages, model, options = {}) {
 	return ok({
 		messages: kept,
 		decisions,
-		stats: statsOf(model, messages, kept, decisions, scored.value, started)
+		stats: statsOf(model, messages, kept, decisions, scored.value, resolved.keepThreshold, started)
 	});
 }
 /** Share of characters removed: 0 when nothing was, 1 when everything was. */
@@ -1174,10 +1175,28 @@ function summarize(result) {
 	const state = stats.stateStage ? `, state ~${stats.stateTokens} tokens (${stats.stateStage})` : "";
 	return `${percent(reductionRatio(result))} reduction; ${parts.join(", ") || "no tool calls"}; ${stats.model}${state}, ${stats.requests} request(s)`;
 }
-/** Every unpinned decision with both probabilities, split into lines the log can hold. */
-function decisionLogLines(result) {
-	const entries = result.decisions.filter((d) => d.reason !== "pinned").map((d) => `${d.id}:${d.tool}:${d.action}/call=${d.keepCall.toFixed(2)}/result=${d.keepResult.toFixed(2)}`);
-	if (entries.length === 0) return ["decisions: (none)"];
+function median(sorted) {
+	const middle = Math.floor(sorted.length / 2);
+	return sorted.length % 2 === 1 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+}
+/** `median 0.22 (0.14 to 0.36)` for a non-empty list of probabilities. */
+function spread(values) {
+	const sorted = [...values].sort((a, b) => a - b);
+	const fixed = (value) => value.toFixed(2);
+	return `median ${fixed(median(sorted))} (${fixed(sorted[0])} to ${fixed(sorted.at(-1))})`;
+}
+/** One line: how many calls were scored, what happened to them, and how the scores spread. */
+function decisionSummary(result) {
+	const scored = result.decisions.filter((d) => d.reason !== "pinned");
+	const { stats } = result;
+	const pinned = stats.pinned > 0 ? `, ${stats.pinned} pinned` : "";
+	if (scored.length === 0) return `decisions: none scored${pinned}`;
+	const counts = `${stats.kept} kept, ${stats.resultsDropped} truncated, ${stats.callsDropped} dropped`;
+	const call = spread(scored.map((d) => d.keepCall));
+	const keepResult = spread(scored.map((d) => d.keepResult));
+	return `decisions: ${scored.length} scored, ${counts}${pinned} at threshold ${stats.keepThreshold.toFixed(2)}; keep-call ${call}, keep-result ${keepResult}`;
+}
+function chunk(entries) {
 	const chunks = [];
 	let current = "";
 	for (const entry of entries) {
@@ -1187,8 +1206,18 @@ function decisionLogLines(result) {
 			current = entry;
 		} else current = next;
 	}
-	chunks.push(current);
-	return chunks.map((chunk, index) => chunks.length === 1 ? `decisions: ${chunk}` : `decisions (${index + 1}/${chunks.length}): ${chunk}`);
+	if (current) chunks.push(current);
+	return chunks;
+}
+/**
+* The summary line, followed by every unpinned decision with both
+* probabilities when `eachDecision` is on, split into lines the log can hold.
+*/
+function decisionLogLines(result, eachDecision = false) {
+	const summary = decisionSummary(result);
+	if (!eachDecision) return [summary];
+	const chunks = chunk(result.decisions.filter((d) => d.reason !== "pinned").map((d) => `${d.id}:${d.tool}:${d.action}/call=${d.keepCall.toFixed(2)}/result=${d.keepResult.toFixed(2)}`));
+	return [summary, ...chunks.map((part, index) => `decision detail (${index + 1}/${chunks.length}): ${part}`)];
 }
 //#endregion
 //#region src/run.ts
@@ -1223,7 +1252,7 @@ async function compactSession(messages, config, secrets, transport, instructions
 		log
 	};
 	const result = outcome.value;
-	log.push(...decisionLogLines(result));
+	log.push(...decisionLogLines(result, config.logEachDecision));
 	if (reductionRatio(result) < config.minReductionRatio) return {
 		kind: "fallback",
 		reason: `below the ${percent(config.minReductionRatio)} minimum: ${summarize(result)}`,
@@ -1365,15 +1394,29 @@ const HOOK_DEFAULTS = {
 	compactAtPercent: 60,
 	minReductionRatio: .25,
 	fallbackToHeuristic: true,
-	runPreCompactHooks: true
+	runPreCompactHooks: true,
+	logEachDecision: false
 };
 function text(options, key) {
 	const value = options[key];
 	return typeof value === "string" && value.trim().length > 0 ? value.trim() : void 0;
 }
+/**
+* A number from a picker value (`"0.25"`, `"25%"` as 0.25, `"off"` as 0) or
+* from a plain number saved before the field became a picker. Anything else,
+* such as `"model default"`, is unset.
+*/
 function number(options, key) {
 	const value = options[key];
-	return typeof value === "number" && Number.isFinite(value) ? value : void 0;
+	if (typeof value === "number") return Number.isFinite(value) ? value : void 0;
+	if (typeof value !== "string") return void 0;
+	const trimmed = value.trim().toLowerCase();
+	if (trimmed === "") return void 0;
+	if (trimmed === "off") return 0;
+	const isPercent = trimmed.endsWith("%");
+	const parsed = Number(isPercent ? trimmed.slice(0, -1) : trimmed);
+	if (!Number.isFinite(parsed)) return void 0;
+	return isPercent ? parsed / 100 : parsed;
 }
 function flag(options, key) {
 	const value = options[key];
@@ -1400,7 +1443,8 @@ function resolveHookConfig(options) {
 		compactAtPercent: number(options, "compactAtPercent") ?? HOOK_DEFAULTS.compactAtPercent,
 		minReductionRatio: number(options, "minReductionRatio") ?? HOOK_DEFAULTS.minReductionRatio,
 		fallbackToHeuristic: flag(options, "fallbackToHeuristic") ?? HOOK_DEFAULTS.fallbackToHeuristic,
-		runPreCompactHooks: text(options, "preCompactHooks") !== "skip"
+		runPreCompactHooks: text(options, "preCompactHooks") !== "skip",
+		logEachDecision: flag(options, "logEachDecision") ?? HOOK_DEFAULTS.logEachDecision
 	};
 }
 //#endregion
