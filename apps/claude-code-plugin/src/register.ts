@@ -47,6 +47,7 @@ export const register: Register = (on: On, options: PluginOptions) => {
         config,
         await readSecrets($),
         engineTransport($),
+        e.instructions,
       );
       for (const line of outcome.log) $.ui.log(line);
       if (outcome.kind === "fallback") {

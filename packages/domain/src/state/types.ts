@@ -19,6 +19,8 @@ export interface HistoryEntry {
 export interface CompactionState {
   readonly context: string;
   readonly goal: string;
+  /** What the person asked this compaction to keep (the text after `/compact`), when given. */
+  readonly instructions?: string;
   readonly history: readonly HistoryEntry[];
 }
 

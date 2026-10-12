@@ -25,7 +25,7 @@ describe("decisions", () => {
     });
   });
 
-  it("removes dropped calls and truncates dropped results", () => {
+  it("removes dropped calls and truncates dropped results (fast-jev-compaction behaviour)", () => {
     const messages = transcript("x".repeat(2000));
     const calls = collectToolCalls(messages, 0);
     const decisions = [
@@ -33,7 +33,7 @@ describe("decisions", () => {
       decideCall(calls[1]!, { keepCall: 0.9, keepResult: 0.1 }, options),
       decideCall(calls[2]!, { keepCall: 0.9, keepResult: 0.9 }, options),
     ];
-    const kept = applyDecisions(messages, decisions, calls, 300);
+    const kept = applyDecisions(messages, decisions, calls, 300, { noteDroppedCalls: false });
 
     expect(
       kept.map((m) => m.text || m.toolUses[0]?.tool_use_id || m.toolResults?.[0]?.tool_use_id),
@@ -56,9 +56,34 @@ describe("decisions", () => {
     expect(kept[5]?.toolResults?.[0]?.text).toContain("expected 2 to be 3");
 
     const short = transcript("y".repeat(100));
-    const shortKept = applyDecisions(short, decisions, calls, 300);
+    const shortKept = applyDecisions(short, decisions, calls, 300, { noteDroppedCalls: false });
     expect(shortKept[2]).toBe(short[4]);
     expect(shortKept[3]).toBe(short[5]);
+  });
+
+  it("leaves a note where a dropped call's result was", () => {
+    const messages = transcript();
+    const calls = collectToolCalls(messages, 0);
+    const drop = { keepCall: 0.1, keepResult: 0.1 };
+    const decisions = [decideCall(calls[0]!, drop, options), decideCall(calls[2]!, drop, options)];
+    const kept = applyDecisions(messages, decisions, calls, 300);
+
+    expect(kept.some((m) => m.toolUses.some((t) => t.tool_use_id === "tool-1"))).toBe(false);
+    const notes = kept.filter((m) => m.text.startsWith("[agent-context-pruner removed"));
+    expect(notes.map((m) => [m.role, m.text, m.toolResults])).toEqual([
+      [
+        "user",
+        "[agent-context-pruner removed tool call Read file_path=src/a.ts (1000 chars of output); re-run it if needed]",
+        undefined,
+      ],
+      [
+        "user",
+        "[agent-context-pruner removed tool call Bash command=npm test (an error, 34 chars); re-run it if needed]",
+        undefined,
+      ],
+    ]);
+    expect(kept.indexOf(notes[0]!)).toBe(1);
+    expect(kept[2]).toBe(messages[3]);
   });
 
   it("honours truncateHeadChars, including a zero head", () => {

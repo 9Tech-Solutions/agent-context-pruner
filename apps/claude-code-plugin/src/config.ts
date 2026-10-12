@@ -51,6 +51,11 @@ function number(options: PluginOptions, key: string): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
+function flag(options: PluginOptions, key: string): boolean | undefined {
+  const value = options[key];
+  return typeof value === "boolean" ? value : undefined;
+}
+
 function isProvider(value: string | undefined): value is Provider {
   return PROVIDERS.some((provider) => provider === value);
 }
@@ -58,7 +63,6 @@ function isProvider(value: string | undefined): value is Provider {
 /** Reads the plugin's options; anything missing or malformed takes the default. */
 export function resolveHookConfig(options: PluginOptions): HookConfig {
   const provider = text(options, "provider");
-  const fallback = options["fallbackToHeuristic"];
   return {
     provider: isProvider(provider) ? provider : "auto",
     model: text(options, "model"),
@@ -69,10 +73,10 @@ export function resolveHookConfig(options: PluginOptions): HookConfig {
       keepThreshold: number(options, "keepThreshold"),
       preserveRecentMessages: number(options, "preserveRecentMessages"),
       truncateHeadChars: number(options, "truncateHeadChars"),
+      noteDroppedCalls: flag(options, "noteDroppedCalls"),
     },
     compactAtPercent: number(options, "compactAtPercent") ?? HOOK_DEFAULTS.compactAtPercent,
     minReductionRatio: number(options, "minReductionRatio") ?? HOOK_DEFAULTS.minReductionRatio,
-    fallbackToHeuristic:
-      typeof fallback === "boolean" ? fallback : HOOK_DEFAULTS.fallbackToHeuristic,
+    fallbackToHeuristic: flag(options, "fallbackToHeuristic") ?? HOOK_DEFAULTS.fallbackToHeuristic,
   };
 }

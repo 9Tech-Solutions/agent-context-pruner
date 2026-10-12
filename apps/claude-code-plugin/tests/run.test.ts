@@ -34,6 +34,9 @@ describe("compactSession", () => {
       text: expect.stringContaining("[agent-context-pruner truncated"),
       isError: false,
     });
+    const note = outcome.messages.find((m) => m.text.includes("removed tool call Read"));
+    expect(note).toMatchObject({ role: "user", toolUses: [] });
+    expect(note?.text).toContain("file_path=src/a.ts (8000 chars of output); re-run it if needed");
     expect(outcome.log.at(-1)).toMatch(/^decisions: t1:Read:drop_call/);
   });
 

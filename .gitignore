@@ -54,3 +54,6 @@ dist-ssr
 # declaration files belong in dist only
 packages/*/src/**/*.d.ts
 packages/*/tests/**/*.d.ts
+
+# Claude Code writes these when it loads the plugin with --plugin-dir
+apps/claude-code-plugin/plugin/tsconfig.json

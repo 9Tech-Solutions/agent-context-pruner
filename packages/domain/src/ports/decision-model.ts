@@ -20,6 +20,8 @@ export interface ModelCapabilities {
 
 export interface ScoreRequest {
   readonly goal: string;
+  /** What the person asked this compaction to keep (the text after `/compact`); '' when none. */
+  readonly instructions: string;
   /** The fitted conversation, or null for models whose `state` is `none`. */
   readonly state: CompactionState | null;
   readonly stateTokens: number;

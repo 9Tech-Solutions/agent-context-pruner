@@ -8,6 +8,7 @@ import {
   compactCall,
   goalFromMessages,
   historyEntries,
+  INSTRUCTIONS_NOTE,
   STATE_CONTEXT,
 } from "./history.ts";
 import type { CompactionState, FittedState, HistoryEntry } from "./types.ts";
@@ -17,6 +18,8 @@ export interface FitOptions {
   readonly preserveRecentMessages: number;
   /** Ongoing task; the latest user prompts are used when empty. */
   readonly goal: string;
+  /** What the person asked this compaction to keep, such as the text after `/compact`. */
+  readonly instructions?: string;
   /** Defaults to the built-in estimator. */
   readonly estimateTokens?: TokenEstimator;
 }
@@ -38,6 +41,7 @@ interface FitContext {
   readonly messages: readonly Message[];
   readonly calls: readonly ToolCall[];
   readonly goal: string;
+  readonly instructions: string;
   readonly limit: number;
   readonly estimate: TokenEstimator;
   readonly baseTokens: number;
@@ -55,18 +59,29 @@ type Step = { readonly fitted: FittedState } | { readonly draft: Draft };
 
 type Stage = (ctx: FitContext, draft: Draft, order: readonly number[]) => Step;
 
+function stateOf(
+  goal: string,
+  instructions: string,
+  history: readonly HistoryEntry[],
+): CompactionState {
+  if (!instructions) return { context: STATE_CONTEXT, goal, history };
+  return { context: `${STATE_CONTEXT} ${INSTRUCTIONS_NOTE}`, goal, instructions, history };
+}
+
 function contextOf(
   messages: readonly Message[],
   calls: readonly ToolCall[],
   options: FitOptions,
 ): FitContext {
   const goal = options.goal || goalFromMessages(messages);
+  const instructions = options.instructions?.trim() ?? "";
   const estimate = options.estimateTokens ?? estimateTokens;
-  const empty: CompactionState = { context: STATE_CONTEXT, goal, history: [] };
+  const empty = stateOf(goal, instructions, []);
   return {
     messages,
     calls,
     goal,
+    instructions,
     limit: options.maxStateTokens,
     estimate,
     baseTokens: estimate(JSON.stringify(empty)),
@@ -88,7 +103,7 @@ function fits(ctx: FitContext, draft: Draft): boolean {
 }
 
 function fitted(ctx: FitContext, draft: Draft, stage: string): Step {
-  const state: CompactionState = { context: STATE_CONTEXT, goal: ctx.goal, history: draft.history };
+  const state = stateOf(ctx.goal, ctx.instructions, draft.history);
   return { fitted: { state, tokens: draft.tokens, stage } };
 }
 

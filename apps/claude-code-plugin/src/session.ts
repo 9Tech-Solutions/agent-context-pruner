@@ -47,3 +47,25 @@ export function toSessionMessages(
     return toolResults.length > 0 ? { ...rebuilt, toolResults } : rebuilt;
   });
 }
+
+/** Rows Claude Code adds for slash commands and reminders: not the person's prompts. */
+const HOST_MARKUP =
+  /^\s*<(command-name|command-message|command-args|local-command-[a-z-]+|system-reminder)>/;
+
+/**
+ * The goal for the model: the person's last three prompts, leaving out the
+ * rows Claude Code writes for slash commands, which would otherwise crowd them out.
+ */
+export function promptGoal(messages: readonly SessionMessage[]): string {
+  return messages
+    .filter(
+      (m) =>
+        m.role === "user" &&
+        m.text.trim().length > 0 &&
+        (m.toolResults ?? []).length === 0 &&
+        !HOST_MARKUP.test(m.text),
+    )
+    .slice(-3)
+    .map((m) => (m.text.length > 500 ? `${m.text.slice(0, 499)}…` : m.text))
+    .join("\n");
+}

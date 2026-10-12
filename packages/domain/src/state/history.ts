@@ -6,6 +6,10 @@ import type { HistoryEntry, HistoryToolCall } from "./types.ts";
 export const STATE_CONTEXT =
   "A coding assistant conversation is being compacted to free context. `history` is the whole conversation so far, oldest first; tool outputs are replaced by a short `result` note and long texts may be abridged. Each question asks whether one tool call, or the full output of that call, still needs to stay in the history verbatim. Whatever is not kept is deleted permanently, but the assistant can always re-run a tool or re-read a file.";
 
+/** Added to `context` only when the person gave instructions, so other states stay byte-identical. */
+export const INSTRUCTIONS_NOTE =
+  "`instructions` is what the person asked this compaction to keep or focus on: a tool call it points to should stay.";
+
 export function inputText(input: Readonly<Record<string, unknown>>, limit: number): string {
   let json: string;
   try {
@@ -20,16 +24,21 @@ function resultNote(call: ToolCall): string {
   return `${call.isError ? "error" : "ok"}, ${call.resultChars} chars (omitted)`;
 }
 
-/** One call as a single line, for when the structured form is too costly. */
-export function compactCall(call: ToolCall, inputChars: number): string {
-  const input = Object.entries(call.input)
+/** A call's input as `key=value` pairs on one line, cut to `limit` characters. */
+export function inputLine(input: Readonly<Record<string, unknown>>, limit: number): string {
+  const line = Object.entries(input)
     .map(([key, value]) => {
       const text = typeof value === "string" ? value : inputText({ [key]: value }, 200);
       return `${key}=${text.replace(/\s+/g, " ")}`;
     })
     .join(" ");
+  return truncate(line, limit);
+}
+
+/** One call as a single line, for when the structured form is too costly. */
+export function compactCall(call: ToolCall, inputChars: number): string {
   const outcome = call.isError ? "error" : "ok";
-  return `${call.id} ${call.tool} ${truncate(input, inputChars)} → ${outcome} ${call.resultChars}ch`;
+  return `${call.id} ${call.tool} ${inputLine(call.input, inputChars)} → ${outcome} ${call.resultChars}ch`;
 }
 
 export function callsByMessage(calls: readonly ToolCall[]): Map<number, ToolCall[]> {

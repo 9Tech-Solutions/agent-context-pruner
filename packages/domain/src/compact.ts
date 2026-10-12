@@ -108,7 +108,9 @@ async function scoreCandidates(
   if (!fitted.ok) return fitted;
   const state = fitted.value?.state ?? null;
   const stateTokens = fitted.value?.tokens ?? 0;
-  const response = await askModel(model, { goal, state, stateTokens, candidates, calls, messages });
+  const { instructions } = options;
+  const request = { goal, instructions, state, stateTokens, candidates, calls, messages };
+  const response = await askModel(model, request);
   if (!response.ok) return response;
   const scores = checkScores(candidates, response.value.scores);
   if (!scores.ok) return scores;
@@ -172,7 +174,9 @@ export async function compact(
   const decisions = calls.map((call) =>
     decideCall(call, scored.value.scores.get(call.id) ?? KEEP_ALL, resolved),
   );
-  const kept = applyDecisions(messages, decisions, calls, resolved.truncateHeadChars);
+  const kept = applyDecisions(messages, decisions, calls, resolved.truncateHeadChars, {
+    noteDroppedCalls: resolved.noteDroppedCalls,
+  });
   const stats = statsOf(model, messages, kept, decisions, scored.value, started);
   return ok({ messages: kept, decisions, stats });
 }

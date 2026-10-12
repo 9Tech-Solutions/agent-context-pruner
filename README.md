@@ -47,10 +47,31 @@ From then on `/compact` and auto-compaction go through the plugin. A toast says 
 `auto` tries TypeSafe, then Cloudflare, then the rules. When the chosen model is unavailable or
 fails, the plugin prunes with the rules instead (`fallbackToHeuristic`, on by default). Other
 options: `keepThreshold`, `preserveRecentMessages` (6), `compactAtPercent` (60, `0` turns the
-plugin's own auto-compaction off), `minReductionRatio` (0.25), `truncateHeadChars` (300).
+plugin's own auto-compaction off), `minReductionRatio` (0.25), `truncateHeadChars` (300),
+`noteDroppedCalls` (on: a dropped call leaves a one-line note where its result was, so the
+model knows what to re-run).
 
 Keys are read from the environment or the plugin's secure `apiKey` option. Never put them in a
 file in this repository.
+
+### Telling it what to keep
+
+Text after `/compact` reaches the decision model as `instructions`, next to the goal (your last
+three prompts): `/compact keep the auth plan and src/auth/session.ts`. Models that read the
+conversation weigh it when scoring each call; the rules-based model keeps any file it names.
+
+### With ECC strategic-compact
+
+[ECC](https://github.com/affaan-m/ECC)'s strategic-compact suggests
+`/compact` at task-phase boundaries instead of at an arbitrary fill level. The two fit
+together:
+
+- Compact at the boundary it suggests, with the focus as instructions (above).
+- Set `compactAtPercent` to `0`, so the plugin never compacts mid-task on its own. Claude Code's
+  own threshold still compacts through the plugin when the window is nearly full.
+- Known gap: when the plugin replaces a compaction, Claude Code does not run classic `PreCompact`
+  hooks, so ECC's `pre-compact.js` (its session summary and the `Compaction occurred` marker) is
+  skipped. It still runs whenever the plugin falls back to the built-in summary.
 
 ## How it works
 

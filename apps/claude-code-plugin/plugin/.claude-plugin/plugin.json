@@ -2,7 +2,10 @@
   "name": "agent-context-pruner",
   "version": "0.1.0",
   "description": "Replaces Claude Code's compaction summary with decision-model pruning: stale tool calls and results are dropped or truncated, everything kept stays verbatim.",
-  "author": { "name": "9Tech Solutions", "url": "https://9tech.solutions" },
+  "author": {
+    "name": "9Tech Solutions",
+    "url": "https://9tech.solutions"
+  },
   "homepage": "https://github.com/9Tech-Solutions/agent-context-pruner",
   "repository": "https://github.com/9Tech-Solutions/agent-context-pruner",
   "license": "SEE LICENSE IN LICENSE",
@@ -68,6 +71,12 @@
       "type": "boolean",
       "title": "Fall back to the rules-based model",
       "description": "When the chosen model is unavailable or fails, prune with the rules-based model instead of going straight to the built-in summary.",
+      "default": true
+    },
+    "noteDroppedCalls": {
+      "type": "boolean",
+      "title": "Note dropped calls",
+      "description": "Leave a one-line note where a dropped tool call's result was, so the model knows what was removed and can re-run it.",
       "default": true
     }
   }

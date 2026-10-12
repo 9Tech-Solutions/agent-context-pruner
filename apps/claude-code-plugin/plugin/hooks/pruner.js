@@ -20,13 +20,16 @@ function number(options, key) {
 	const value = options[key];
 	return typeof value === "number" && Number.isFinite(value) ? value : void 0;
 }
+function flag(options, key) {
+	const value = options[key];
+	return typeof value === "boolean" ? value : void 0;
+}
 function isProvider(value) {
 	return PROVIDERS.some((provider) => provider === value);
 }
 /** Reads the plugin's options; anything missing or malformed takes the default. */
 function resolveHookConfig(options) {
 	const provider = text(options, "provider");
-	const fallback = options["fallbackToHeuristic"];
 	return {
 		provider: isProvider(provider) ? provider : "auto",
 		model: text(options, "model"),
@@ -36,17 +39,92 @@ function resolveHookConfig(options) {
 		compact: {
 			keepThreshold: number(options, "keepThreshold"),
 			preserveRecentMessages: number(options, "preserveRecentMessages"),
-			truncateHeadChars: number(options, "truncateHeadChars")
+			truncateHeadChars: number(options, "truncateHeadChars"),
+			noteDroppedCalls: flag(options, "noteDroppedCalls")
 		},
 		compactAtPercent: number(options, "compactAtPercent") ?? HOOK_DEFAULTS.compactAtPercent,
 		minReductionRatio: number(options, "minReductionRatio") ?? HOOK_DEFAULTS.minReductionRatio,
-		fallbackToHeuristic: typeof fallback === "boolean" ? fallback : HOOK_DEFAULTS.fallbackToHeuristic
+		fallbackToHeuristic: flag(options, "fallbackToHeuristic") ?? HOOK_DEFAULTS.fallbackToHeuristic
 	};
+}
+//#endregion
+//#region ../../packages/domain/src/text.ts
+/** `text` cut to `limit` characters, ending in `…` when it was longer. */
+function truncate(text, limit) {
+	return text.length <= limit ? text : `${text.slice(0, Math.max(0, limit - 1))}…`;
+}
+/** Head and tail of `text` around a `[… N chars omitted …]` note, or `text` when short. */
+function abridge(text, head, tail) {
+	if (text.length <= head + tail + 40) return text;
+	const omitted = text.length - head - tail;
+	return `${text.slice(0, head)}\n[… ${omitted} chars omitted …]\n${text.slice(-tail)}`;
+}
+//#endregion
+//#region ../../packages/domain/src/state/history.ts
+const STATE_CONTEXT = "A coding assistant conversation is being compacted to free context. `history` is the whole conversation so far, oldest first; tool outputs are replaced by a short `result` note and long texts may be abridged. Each question asks whether one tool call, or the full output of that call, still needs to stay in the history verbatim. Whatever is not kept is deleted permanently, but the assistant can always re-run a tool or re-read a file.";
+/** Added to `context` only when the person gave instructions, so other states stay byte-identical. */
+const INSTRUCTIONS_NOTE = "`instructions` is what the person asked this compaction to keep or focus on: a tool call it points to should stay.";
+function inputText(input, limit) {
+	let json;
+	try {
+		json = JSON.stringify(input);
+	} catch {
+		json = "[unserializable input]";
+	}
+	return truncate(json, limit);
+}
+function resultNote(call) {
+	return `${call.isError ? "error" : "ok"}, ${call.resultChars} chars (omitted)`;
+}
+/** A call's input as `key=value` pairs on one line, cut to `limit` characters. */
+function inputLine(input, limit) {
+	return truncate(Object.entries(input).map(([key, value]) => {
+		return `${key}=${(typeof value === "string" ? value : inputText({ [key]: value }, 200)).replace(/\s+/g, " ")}`;
+	}).join(" "), limit);
+}
+/** One call as a single line, for when the structured form is too costly. */
+function compactCall(call, inputChars) {
+	const outcome = call.isError ? "error" : "ok";
+	return `${call.id} ${call.tool} ${inputLine(call.input, inputChars)} → ${outcome} ${call.resultChars}ch`;
+}
+function callsByMessage(calls) {
+	const byMessage = /* @__PURE__ */ new Map();
+	for (const call of calls) byMessage.set(call.callIndex, [...byMessage.get(call.callIndex) ?? [], call]);
+	return byMessage;
+}
+/** The history entries of a state: every message with text or calls, tool inputs capped. */
+function historyEntries(messages, calls, inputChars) {
+	const byMessage = callsByMessage(calls);
+	const entries = [];
+	messages.forEach((message, i) => {
+		const toolCalls = (byMessage.get(i) ?? []).map((call) => ({
+			id: call.id,
+			tool: call.tool,
+			input: inputText(call.input, inputChars),
+			result: resultNote(call)
+		}));
+		if (message.text.trim().length === 0 && toolCalls.length === 0) return;
+		const entry = {
+			i,
+			role: message.role,
+			text: message.text
+		};
+		entries.push(toolCalls.length > 0 ? {
+			...entry,
+			tool_calls: toolCalls
+		} : entry);
+	});
+	return entries;
+}
+/** The last three user prompts, used as the goal when none is given. */
+function goalFromMessages(messages) {
+	return messages.filter((message) => message.role === "user" && message.text.trim().length > 0 && (message.toolResults ?? []).length === 0).slice(-3).map((message) => truncate(message.text, 500)).join("\n");
 }
 //#endregion
 //#region ../../packages/domain/src/apply.ts
 /** Results within this many characters of the head are kept whole: the note would not save anything. */
 const NOTE_SLACK = 120;
+const NOTE_INPUT_CHARS = 160;
 /** A dropped result: its first `headChars` characters and a note saying how much was cut. */
 function truncatedResultText(text, isError, headChars) {
 	if (text.length <= headChars + NOTE_SLACK) return text;
@@ -54,17 +132,29 @@ function truncatedResultText(text, isError, headChars) {
 	const error = isError ? " (error)" : "";
 	return `${head}[agent-context-pruner truncated ${text.length - headChars} chars of this tool result${error}; re-run the tool if needed]`;
 }
+/**
+* The note left where a dropped call's result was: which tool, with which
+* input, and how much it returned, so the model knows what it no longer has
+* and what to re-run. There is no summary, so without it the model cannot tell.
+*/
+function droppedCallNote(call) {
+	const input = inputLine(call.input, NOTE_INPUT_CHARS);
+	return `[agent-context-pruner removed tool call ${input ? `${call.tool} ${input}` : call.tool} (${call.isError ? `an error, ${call.resultChars} chars` : `${call.resultChars} chars of output`}); re-run it if needed]`;
+}
 function actionsByToolUseId(decisions, calls) {
 	const byId = new Map(calls.map((call) => [call.id, call]));
 	const actions = /* @__PURE__ */ new Map();
 	for (const decision of decisions) {
 		const call = byId.get(decision.id);
-		if (call && decision.action !== "keep") actions.set(call.tool_use_id, decision.action);
+		if (call && decision.action !== "keep") actions.set(call.tool_use_id, {
+			action: decision.action,
+			call
+		});
 	}
 	return actions;
 }
 function rebuildToolUse(tool, actions, headChars) {
-	if (actions.get(tool.tool_use_id) !== "drop_result") return tool;
+	if (actions.get(tool.tool_use_id)?.action !== "drop_result") return tool;
 	const text = truncatedResultText(tool.text ?? "", tool.isError ?? false, headChars);
 	if ((tool.text ?? "") === text) return tool;
 	const copy = {
@@ -79,7 +169,7 @@ function rebuildToolUse(tool, actions, headChars) {
 	} : copy;
 }
 function rebuildToolResult(result, actions, headChars) {
-	if (actions.get(result.tool_use_id) !== "drop_result") return result;
+	if (actions.get(result.tool_use_id)?.action !== "drop_result") return result;
 	const text = truncatedResultText(result.text, result.isError ?? false, headChars);
 	if (text === result.text) return result;
 	return {
@@ -88,17 +178,27 @@ function rebuildToolResult(result, actions, headChars) {
 		isError: result.isError ?? false
 	};
 }
+/** The message's text with a note for each dropped call whose result it held. */
+function withNotes(message, actions, settings) {
+	if (!settings.noteDroppedCalls) return message.text;
+	const notes = (message.toolResults ?? []).flatMap((result) => {
+		const planned = actions.get(result.tool_use_id);
+		return planned?.action === "drop_call" ? [droppedCallNote(planned.call)] : [];
+	});
+	return [message.text, ...notes].filter((part) => part.length > 0).join("\n");
+}
 /** The message with `actions` applied: the same object when nothing changed, null when nothing is left. */
-function rebuildMessage(message, actions, headChars) {
-	const dropped = (id) => actions.get(id) === "drop_call";
+function rebuildMessage(message, actions, settings) {
+	const dropped = (id) => actions.get(id)?.action === "drop_call";
 	const results = message.toolResults ?? [];
-	const toolUses = message.toolUses.filter((tool) => !dropped(tool.tool_use_id)).map((tool) => rebuildToolUse(tool, actions, headChars));
-	const toolResults = results.filter((result) => !dropped(result.tool_use_id)).map((result) => rebuildToolResult(result, actions, headChars));
+	const toolUses = message.toolUses.filter((tool) => !dropped(tool.tool_use_id)).map((tool) => rebuildToolUse(tool, actions, settings.headChars));
+	const toolResults = results.filter((result) => !dropped(result.tool_use_id)).map((result) => rebuildToolResult(result, actions, settings.headChars));
 	if (toolUses.length === message.toolUses.length && toolResults.length === results.length && toolUses.every((tool, index) => tool === message.toolUses[index]) && toolResults.every((result, index) => result === results[index])) return message;
-	if (message.text.trim().length === 0 && toolUses.length === 0 && toolResults.length === 0) return null;
+	const text = withNotes(message, actions, settings);
+	if (text.trim().length === 0 && toolUses.length === 0 && toolResults.length === 0) return null;
 	const rebuilt = {
 		role: message.role,
-		text: message.text,
+		text,
 		toolUses
 	};
 	return toolResults.length > 0 ? {
@@ -108,14 +208,19 @@ function rebuildMessage(message, actions, headChars) {
 }
 /**
 * Rebuilds the conversation from the decisions. A dropped call disappears
-* together with its result, a dropped result keeps a bounded head and a note.
-* Messages left empty are removed. Untouched messages come back as the same
-* objects they came in as, so host adapters can keep their own handles.
+* together with its result, leaving a one-line note where the result was
+* (unless `noteDroppedCalls` is false); a dropped result keeps a bounded head
+* and a note. Messages left empty are removed. Untouched messages come back as
+* the same objects they came in as, so host adapters can keep their own handles.
 */
-function applyDecisions(messages, decisions, calls, headChars) {
+function applyDecisions(messages, decisions, calls, headChars, options = {}) {
 	const actions = actionsByToolUseId(decisions, calls);
 	if (actions.size === 0) return [...messages];
-	return messages.map((message) => rebuildMessage(message, actions, headChars)).filter((message) => message !== null);
+	const settings = {
+		headChars,
+		noteDroppedCalls: options.noteDroppedCalls ?? true
+	};
+	return messages.map((message) => rebuildMessage(message, actions, settings)).filter((message) => message !== null);
 }
 /** Characters of text, tool input and tool output a message holds. */
 function messageChars(message) {
@@ -165,10 +270,12 @@ function decideCall(call, score, options) {
 //#region ../../packages/domain/src/options.ts
 const DEFAULT_OPTIONS = {
 	goal: "",
+	instructions: "",
 	keepThreshold: .5,
 	preserveRecentMessages: 6,
 	maxStateTokens: 25e3,
-	truncateHeadChars: 300
+	truncateHeadChars: 300,
+	noteDroppedCalls: true
 };
 function finite(value, fallback) {
 	return typeof value === "number" && Number.isFinite(value) ? value : fallback;
@@ -181,10 +288,12 @@ function resolveOptions(options = {}, model = {}) {
 	const head = finite(options.truncateHeadChars, DEFAULT_OPTIONS.truncateHeadChars);
 	return {
 		goal: options.goal ?? DEFAULT_OPTIONS.goal,
+		instructions: options.instructions?.trim() ?? DEFAULT_OPTIONS.instructions,
 		keepThreshold: finite(options.keepThreshold, keepThreshold),
 		preserveRecentMessages: Math.max(0, Math.floor(preserve)),
 		maxStateTokens: Math.max(1, finite(options.maxStateTokens, maxStateTokens)),
-		truncateHeadChars: Math.max(0, Math.floor(head))
+		truncateHeadChars: Math.max(0, Math.floor(head)),
+		noteDroppedCalls: options.noteDroppedCalls ?? DEFAULT_OPTIONS.noteDroppedCalls
 	};
 }
 //#endregion
@@ -200,18 +309,6 @@ function err(error) {
 		ok: false,
 		error
 	};
-}
-//#endregion
-//#region ../../packages/domain/src/text.ts
-/** `text` cut to `limit` characters, ending in `…` when it was longer. */
-function truncate(text, limit) {
-	return text.length <= limit ? text : `${text.slice(0, Math.max(0, limit - 1))}…`;
-}
-/** Head and tail of `text` around a `[… N chars omitted …]` note, or `text` when short. */
-function abridge(text, head, tail) {
-	if (text.length <= head + tail + 40) return text;
-	const omitted = text.length - head - tail;
-	return `${text.slice(0, head)}\n[… ${omitted} chars omitted …]\n${text.slice(-tail)}`;
 }
 //#endregion
 //#region ../../packages/domain/src/tokens.ts
@@ -276,62 +373,6 @@ function collectToolCalls(messages, preserveRecentMessages) {
 	return calls;
 }
 //#endregion
-//#region ../../packages/domain/src/state/history.ts
-const STATE_CONTEXT = "A coding assistant conversation is being compacted to free context. `history` is the whole conversation so far, oldest first; tool outputs are replaced by a short `result` note and long texts may be abridged. Each question asks whether one tool call, or the full output of that call, still needs to stay in the history verbatim. Whatever is not kept is deleted permanently, but the assistant can always re-run a tool or re-read a file.";
-function inputText(input, limit) {
-	let json;
-	try {
-		json = JSON.stringify(input);
-	} catch {
-		json = "[unserializable input]";
-	}
-	return truncate(json, limit);
-}
-function resultNote(call) {
-	return `${call.isError ? "error" : "ok"}, ${call.resultChars} chars (omitted)`;
-}
-/** One call as a single line, for when the structured form is too costly. */
-function compactCall(call, inputChars) {
-	const input = Object.entries(call.input).map(([key, value]) => {
-		return `${key}=${(typeof value === "string" ? value : inputText({ [key]: value }, 200)).replace(/\s+/g, " ")}`;
-	}).join(" ");
-	const outcome = call.isError ? "error" : "ok";
-	return `${call.id} ${call.tool} ${truncate(input, inputChars)} → ${outcome} ${call.resultChars}ch`;
-}
-function callsByMessage(calls) {
-	const byMessage = /* @__PURE__ */ new Map();
-	for (const call of calls) byMessage.set(call.callIndex, [...byMessage.get(call.callIndex) ?? [], call]);
-	return byMessage;
-}
-/** The history entries of a state: every message with text or calls, tool inputs capped. */
-function historyEntries(messages, calls, inputChars) {
-	const byMessage = callsByMessage(calls);
-	const entries = [];
-	messages.forEach((message, i) => {
-		const toolCalls = (byMessage.get(i) ?? []).map((call) => ({
-			id: call.id,
-			tool: call.tool,
-			input: inputText(call.input, inputChars),
-			result: resultNote(call)
-		}));
-		if (message.text.trim().length === 0 && toolCalls.length === 0) return;
-		const entry = {
-			i,
-			role: message.role,
-			text: message.text
-		};
-		entries.push(toolCalls.length > 0 ? {
-			...entry,
-			tool_calls: toolCalls
-		} : entry);
-	});
-	return entries;
-}
-/** The last three user prompts, used as the goal when none is given. */
-function goalFromMessages(messages) {
-	return messages.filter((message) => message.role === "user" && message.text.trim().length > 0 && (message.toolResults ?? []).length === 0).slice(-3).map((message) => truncate(message.text, 500)).join("\n");
-}
-//#endregion
 //#region ../../packages/domain/src/state/fit.ts
 /** Successive caps on the serialised tool input included per call. */
 const INPUT_CHARS = [
@@ -342,18 +383,29 @@ const INPUT_CHARS = [
 const COMPACT_INPUT_CHARS = 60;
 const TEXT_HEAD = 400;
 const TEXT_TAIL = 150;
-function contextOf(messages, calls, options) {
-	const goal = options.goal || goalFromMessages(messages);
-	const estimate = options.estimateTokens ?? estimateTokens;
-	const empty = {
+function stateOf(goal, instructions, history) {
+	if (!instructions) return {
 		context: STATE_CONTEXT,
 		goal,
-		history: []
+		history
 	};
+	return {
+		context: `${STATE_CONTEXT} ${INSTRUCTIONS_NOTE}`,
+		goal,
+		instructions,
+		history
+	};
+}
+function contextOf(messages, calls, options) {
+	const goal = options.goal || goalFromMessages(messages);
+	const instructions = options.instructions?.trim() ?? "";
+	const estimate = options.estimateTokens ?? estimateTokens;
+	const empty = stateOf(goal, instructions, []);
 	return {
 		messages,
 		calls,
 		goal,
+		instructions,
 		limit: options.maxStateTokens,
 		estimate,
 		baseTokens: estimate(JSON.stringify(empty)),
@@ -376,11 +428,7 @@ function fits(ctx, draft) {
 }
 function fitted(ctx, draft, stage) {
 	return { fitted: {
-		state: {
-			context: STATE_CONTEXT,
-			goal: ctx.goal,
-			history: draft.history
-		},
+		state: stateOf(ctx.goal, ctx.instructions, draft.history),
 		tokens: draft.tokens,
 		stage
 	} };
@@ -574,10 +622,14 @@ async function scoreCandidates(messages, calls, model, options) {
 		estimateTokens
 	}) : ok(null);
 	if (!fitted.ok) return fitted;
+	const state = fitted.value?.state ?? null;
+	const stateTokens = fitted.value?.tokens ?? 0;
+	const { instructions } = options;
 	const response = await askModel(model, {
 		goal,
-		state: fitted.value?.state ?? null,
-		stateTokens: fitted.value?.tokens ?? 0,
+		instructions,
+		state,
+		stateTokens,
 		candidates,
 		calls,
 		messages
@@ -632,7 +684,7 @@ async function compact(messages, model, options = {}) {
 	const scored = await scoreCandidates(messages, calls, model, resolved);
 	if (!scored.ok) return scored;
 	const decisions = calls.map((call) => decideCall(call, scored.value.scores.get(call.id) ?? KEEP_ALL, resolved));
-	const kept = applyDecisions(messages, decisions, calls, resolved.truncateHeadChars);
+	const kept = applyDecisions(messages, decisions, calls, resolved.truncateHeadChars, { noteDroppedCalls: resolved.noteDroppedCalls });
 	return ok({
 		messages: kept,
 		decisions,
@@ -718,10 +770,15 @@ const DROP_RESULT = {
 	keepCall: .9,
 	keepResult: .1
 };
-function rulesOf(options) {
+/** Path-like words of the instructions (`src/auth.ts`, `README.md`), lower-cased with forward slashes. */
+function namedPaths(instructions) {
+	return (instructions.match(/[\w.@~-]*[./\\][\w./\\@~-]+/g) ?? []).map((word) => word.replace(/\\/g, "/").replace(/[.,;:]+$/, "").toLowerCase()).filter((word) => word.length >= 3);
+}
+function rulesOf(options, instructions) {
 	const reads = new Set((options.readTools ?? READ_TOOLS).map((t) => t.toLowerCase()));
 	const writes = new Set((options.writeTools ?? WRITE_TOOLS).map((t) => t.toLowerCase()));
 	const keys = options.pathKeys ?? PATH_KEYS;
+	const named = namedPaths(instructions);
 	return {
 		isRead: (tool) => reads.has(tool.toLowerCase()),
 		isWrite: (tool) => writes.has(tool.toLowerCase()),
@@ -729,11 +786,16 @@ function rulesOf(options) {
 			const value = keys.map((key) => call.input[key]).find((v) => typeof v === "string");
 			return typeof value === "string" ? value.trim().replace(/\\/g, "/") : void 0;
 		},
-		largeResultChars: options.largeResultChars ?? 4e3
+		largeResultChars: options.largeResultChars ?? 4e3,
+		named: (path) => {
+			const lower = path.toLowerCase();
+			return named.some((word) => lower === word || lower.endsWith(`/${word}`));
+		}
 	};
 }
 /**
 * Scores one call from what happened after it:
+* a file the person named in the compaction's instructions stays,
 * a file read again later is superseded (drop the call),
 * a file changed later has stale contents (keep the call, truncate the result),
 * a failed call retried successfully is settled (truncate the result),
@@ -742,6 +804,7 @@ function rulesOf(options) {
 function scoreCall(call, calls, rules) {
 	const later = calls.filter((other) => other.callIndex > call.callIndex);
 	const path = rules.pathOf(call);
+	if (path && rules.named(path)) return KEEP;
 	const touches = (other, kind) => kind(other.tool) && rules.pathOf(other) === path;
 	if (path && rules.isRead(call.tool)) {
 		if (later.some((other) => touches(other, rules.isRead))) return DROP_CALL;
@@ -756,7 +819,6 @@ function scoreCall(call, calls, rules) {
 * tool calls. Free, offline, and the fallback when a hosted or local model fails.
 */
 function createHeuristicModel(options = {}) {
-	const rules = rulesOf(options);
 	return {
 		id: "heuristic:v1",
 		capabilities: {
@@ -765,10 +827,14 @@ function createHeuristicModel(options = {}) {
 			estimateTokens,
 			defaultKeepThreshold: .5
 		},
-		score: async (request) => ok({
-			scores: new Map(request.candidates.map((call) => [call.id, scoreCall(call, request.calls, rules)])),
-			requests: 0
-		})
+		score: async (request) => {
+			const rules = rulesOf(options, request.instructions);
+			const scores = request.candidates.map((call) => [call.id, scoreCall(call, request.calls, rules)]);
+			return ok({
+				scores: new Map(scores),
+				requests: 0
+			});
+		}
 	};
 }
 //#endregion
@@ -1110,6 +1176,15 @@ function toSessionMessages(input, output) {
 		} : rebuilt;
 	});
 }
+/** Rows Claude Code adds for slash commands and reminders: not the person's prompts. */
+const HOST_MARKUP = /^\s*<(command-name|command-message|command-args|local-command-[a-z-]+|system-reminder)>/;
+/**
+* The goal for the model: the person's last three prompts, leaving out the
+* rows Claude Code writes for slash commands, which would otherwise crowd them out.
+*/
+function promptGoal(messages) {
+	return messages.filter((m) => m.role === "user" && m.text.trim().length > 0 && (m.toolResults ?? []).length === 0 && !HOST_MARKUP.test(m.text)).slice(-3).map((m) => m.text.length > 500 ? `${m.text.slice(0, 499)}…` : m.text).join("\n");
+}
 //#endregion
 //#region src/summary.ts
 /** Room the engine leaves for one `$.ui.log` line, with margin for the prefix. */
@@ -1148,11 +1223,12 @@ function decisionLogLines(result) {
 //#endregion
 //#region src/run.ts
 /**
-* Compacts a session transcript with the configured model, retries with the
+* Compacts a session transcript with the configured model, passing on what
+* the person asked the compaction to keep (the text after `/compact`), retries with the
 * rules-based model when that fails, and hands the result back only when it
 * removed enough. Every other outcome is a fallback to the built-in summary.
 */
-async function compactSession(messages, config, secrets, transport) {
+async function compactSession(messages, config, secrets, transport, instructions) {
 	const choice = chooseModels(config, secrets, transport);
 	if (!choice.ok) return {
 		kind: "fallback",
@@ -1161,10 +1237,15 @@ async function compactSession(messages, config, secrets, transport) {
 	};
 	const { primary, fallback, notes } = choice.value;
 	const log = [...notes];
-	let outcome = await compact(messages, primary, config.compact);
+	const options = {
+		...config.compact,
+		instructions,
+		goal: promptGoal(messages)
+	};
+	let outcome = await compact(messages, primary, options);
 	if (!outcome.ok && fallback) {
 		log.push(`${primary.id} failed (${outcome.error.message}); retrying with ${fallback.id}`);
-		outcome = await compact(messages, fallback, config.compact);
+		outcome = await compact(messages, fallback, options);
 	}
 	if (!outcome.ok) return {
 		kind: "fallback",
@@ -1227,7 +1308,7 @@ const register = (on, options) => {
 	let compacting = false;
 	on("session.compact", async ($, e, next) => {
 		try {
-			const outcome = await compactSession(e.messages, config, await readSecrets($), engineTransport($));
+			const outcome = await compactSession(e.messages, config, await readSecrets($), engineTransport($), e.instructions);
 			for (const line of outcome.log) $.ui.log(line);
 			if (outcome.kind === "fallback") {
 				notify($, `fallback to built-in summary (${outcome.reason})`);
