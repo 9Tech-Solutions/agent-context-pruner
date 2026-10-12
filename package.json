@@ -11,7 +11,8 @@
   "type": "module",
   "scripts": {
     "ready": "vp check && vp run -r test && vp run -r build",
-    "prepare": "vp config"
+    "prepare": "vp config",
+    "stage-publish": "bun scripts/stage-publish.ts"
   },
   "devDependencies": {
     "vite": "catalog:",

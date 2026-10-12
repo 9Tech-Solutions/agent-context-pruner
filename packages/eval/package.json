@@ -1,6 +1,6 @@
 {
   "name": "@9tech.solutions/pruner-eval",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "description": "Evaluation harness for agent-context-pruner: replays recorded sessions, labels which tool results were needed later, and measures each decision model's keep threshold.",
   "homepage": "https://github.com/9Tech-Solutions/agent-context-pruner#readme",

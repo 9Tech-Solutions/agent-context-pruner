@@ -1,6 +1,6 @@
 {
   "name": "@9tech.solutions/pruner-domain",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "description": "Host-neutral core of agent-context-pruner: transcript model, state fitting, decisions, and the DecisionModel port.",
   "homepage": "https://github.com/9Tech-Solutions/agent-context-pruner#readme",

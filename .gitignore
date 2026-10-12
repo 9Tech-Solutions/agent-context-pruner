@@ -61,3 +61,6 @@ apps/claude-code-plugin/plugin/tsconfig.json
 # Python tool caches
 .ruff_cache/
 .pytest_cache/
+
+# publish staging (scripts/stage-publish.ts)
+.publish/

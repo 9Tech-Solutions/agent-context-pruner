@@ -51,6 +51,19 @@ network only through the injected `HttpTransport`, and new behaviour comes with 
   `claude plugin validate apps/claude-code-plugin/plugin`, and try it in a separate session:
   `claude --plugin-dir apps/claude-code-plugin/plugin`.
 
+## Releasing the npm packages
+
+`domain`, `models`, `eval` and `cli` publish from staged folders, because the workspace
+manifests point `exports` at `src` for development:
+
+```sh
+bun run ready && bun run stage-publish
+cd .publish/pruner-domain && npm publish   # then models, eval, cli, in that order
+```
+
+Bump the versions in the workspace `package.json` files first. Run npm from inside the staged
+folder: from the repository root it refuses, because the root manifest asks for Bun.
+
 ## Commits
 
 Conventional commits: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`, `perf:`, `ci:`.
