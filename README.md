@@ -16,8 +16,41 @@ Hosts: Claude Code first. Codex and Antigravity are planned.
 
 ## Status
 
-Pre-alpha. The core library and the model adapters work and are tested. The Claude Code plugin
-is next. Nothing is published to npm yet.
+Pre-alpha. The core library, the model adapters and the Claude Code plugin are built and unit
+tested; the plugin has not yet been run against live sessions. Nothing is published to npm yet.
+
+## Install in Claude Code
+
+Needs Claude Code 2.1.275 or later (function-hook plugins are an early-access API). At a
+terminal session's prompt:
+
+```
+/plugin install agent-context-pruner --marketplace 9Tech-Solutions/agent-context-pruner
+```
+
+Answer `y` to add the marketplace, pick a scope, then set the options (or leave the defaults).
+From then on `/compact` and auto-compaction go through the plugin. A toast says what happened:
+`kept N/M messages, no summary (…)` when the pruned history replaced the summary, or
+`fallback to built-in summary (…)` when it could not remove enough or the model failed.
+
+### Choosing the decision model
+
+| `provider`   | Uses                                    | Configure                                              |
+| ------------ | --------------------------------------- | ------------------------------------------------------ |
+| `auto`       | the first one available, in table order | nothing                                                |
+| `typesafe`   | TypeSafe Jev                            | `TYPESAFE_API_KEY` or the `apiKey` option              |
+| `cloudflare` | Cloudflare Workers AI Clef              | `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`     |
+| `ollama`     | a local Ollama 0.35+                    | `model` (default `nimble`), `baseUrl` if not localhost |
+| `custom`     | any `/v1/systemone` server              | `baseUrl` and `model`                                  |
+| `heuristic`  | the built-in rules, no network          | nothing                                                |
+
+`auto` tries TypeSafe, then Cloudflare, then the rules. When the chosen model is unavailable or
+fails, the plugin prunes with the rules instead (`fallbackToHeuristic`, on by default). Other
+options: `keepThreshold`, `preserveRecentMessages` (6), `compactAtPercent` (60, `0` turns the
+plugin's own auto-compaction off), `minReductionRatio` (0.25), `truncateHeadChars` (300).
+
+Keys are read from the environment or the plugin's secure `apiKey` option. Never put them in a
+file in this repository.
 
 ## How it works
 
@@ -63,11 +96,11 @@ if (result.ok && reductionRatio(result.value) >= 0.25) {
 
 ## Repository layout
 
-| Path              | Package                          | What it holds                                      |
-| ----------------- | -------------------------------- | -------------------------------------------------- |
-| `packages/domain` | `@9tech.solutions/pruner-domain` | Core logic and the `DecisionModel` port, zero deps |
-| `packages/models` | `@9tech.solutions/pruner-models` | SystemOne adapter with profiles, rules-based model |
-| `apps/` (planned) |                                  | Claude Code plugin, CLI                            |
+| Path                      | Package                               | What it holds                                                        |
+| ------------------------- | ------------------------------------- | -------------------------------------------------------------------- |
+| `packages/domain`         | `@9tech.solutions/pruner-domain`      | Core logic and the `DecisionModel` port, zero deps                   |
+| `packages/models`         | `@9tech.solutions/pruner-models`      | SystemOne adapter with profiles, rules-based model                   |
+| `apps/claude-code-plugin` | `@9tech.solutions/pruner-claude-code` | Claude Code plugin: hook source and the installable `plugin/` folder |
 
 ## Development
 

@@ -1,0 +1,15 @@
+{
+  "name": "agent-context-pruner",
+  "description": "Verbatim context compaction for coding agents, with swappable decision models (hosted, local, or rules).",
+  "owner": {
+    "name": "9Tech Solutions",
+    "url": "https://9tech.solutions"
+  },
+  "plugins": [
+    {
+      "name": "agent-context-pruner",
+      "source": "./apps/claude-code-plugin/plugin",
+      "description": "Verbatim context compaction with swappable decision models."
+    }
+  ]
+}

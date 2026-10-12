@@ -24,7 +24,23 @@
 - `packages/models` (`@9tech.solutions/pruner-models`): `DecisionModel` adapters. One
   SystemOne adapter with provider profiles (`typesafe`, `cloudflare`, `ollama`, `custom`) and a
   rules-based `heuristic` model.
-- `apps/` (planned): the Claude Code plugin, a CLI, and later Codex and Antigravity hosts.
+- `apps/claude-code-plugin` (`@9tech.solutions/pruner-claude-code`): the Claude Code host
+  adapter. `src/` is the hook logic; `plugin/` is the installable plugin folder that
+  `.claude-plugin/marketplace.json` at the repo root points to.
+- `apps/` (planned): a CLI, then Codex and Antigravity hosts.
+
+## The Claude Code plugin
+
+- A hooks module may import only files inside its plugin folder, so `vp pack` bundles
+  `src/register.ts` and both packages into `plugin/hooks/pruner.js`. That file is generated
+  and committed: rebuild it (`bun run ready` does) and commit it with any change under
+  `packages/` or `apps/claude-code-plugin/src/`. Formatting and lint skip it.
+- `src/claude-code.d.ts` declares only the slice of the hook API the plugin uses, written from
+  the types Claude Code 2.1.296 generates. `claude plugin validate apps/claude-code-plugin/plugin`
+  checks the bundle against the real API; run it after touching the hook.
+- Never load this plugin into the session that is editing it: its `turn.complete` hook can
+  compact that session's own context. Test it in a separate session with
+  `claude --plugin-dir apps/claude-code-plugin/plugin`.
 
 ## Architecture rules
 

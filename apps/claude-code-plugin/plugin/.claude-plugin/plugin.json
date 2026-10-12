@@ -1,0 +1,74 @@
+{
+  "name": "agent-context-pruner",
+  "version": "0.1.0",
+  "description": "Replaces Claude Code's compaction summary with decision-model pruning: stale tool calls and results are dropped or truncated, everything kept stays verbatim.",
+  "author": { "name": "9Tech Solutions", "url": "https://9tech.solutions" },
+  "homepage": "https://github.com/9Tech-Solutions/agent-context-pruner",
+  "repository": "https://github.com/9Tech-Solutions/agent-context-pruner",
+  "license": "SEE LICENSE IN LICENSE",
+  "userConfig": {
+    "provider": {
+      "type": "string",
+      "title": "Decision model provider",
+      "description": "auto picks TypeSafe when TYPESAFE_API_KEY or an API key is set, then Cloudflare when CLOUDFLARE_API_TOKEN and an account id are set, else the rules-based model.",
+      "options": ["auto", "typesafe", "cloudflare", "ollama", "custom", "heuristic"],
+      "default": "auto"
+    },
+    "model": {
+      "type": "string",
+      "title": "Model name",
+      "description": "Model sent to the provider. Leave empty for its default (jev-latest, clef, nimble)."
+    },
+    "apiKey": {
+      "type": "string",
+      "title": "API key",
+      "description": "Key for the chosen provider. Leave empty to use TYPESAFE_API_KEY or CLOUDFLARE_API_TOKEN from the environment.",
+      "sensitive": true
+    },
+    "baseUrl": {
+      "type": "string",
+      "title": "Server URL",
+      "description": "Root of a local or custom SystemOne server, for example http://localhost:11434. The plugin appends /v1/systemone."
+    },
+    "accountId": {
+      "type": "string",
+      "title": "Cloudflare account id",
+      "description": "For the cloudflare provider. Leave empty to use CLOUDFLARE_ACCOUNT_ID."
+    },
+    "keepThreshold": {
+      "type": "number",
+      "title": "Keep threshold",
+      "description": "Minimum keep probability for a tool call or result to stay. Leave empty for the model's own default."
+    },
+    "preserveRecentMessages": {
+      "type": "number",
+      "title": "Recent messages to preserve",
+      "description": "Newest messages never touched.",
+      "default": 6
+    },
+    "compactAtPercent": {
+      "type": "number",
+      "title": "Auto-compact at context percentage",
+      "description": "Context percentage at which the plugin asks for a compaction after a turn. 0 turns this off.",
+      "default": 60
+    },
+    "minReductionRatio": {
+      "type": "number",
+      "title": "Minimum reduction ratio",
+      "description": "Share of characters that must be removed for the pruned history to replace the built-in summary.",
+      "default": 0.25
+    },
+    "truncateHeadChars": {
+      "type": "number",
+      "title": "Truncated result head",
+      "description": "Characters of a dropped tool result kept before its note.",
+      "default": 300
+    },
+    "fallbackToHeuristic": {
+      "type": "boolean",
+      "title": "Fall back to the rules-based model",
+      "description": "When the chosen model is unavailable or fails, prune with the rules-based model instead of going straight to the built-in summary.",
+      "default": true
+    }
+  }
+}

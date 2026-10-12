@@ -9,6 +9,19 @@
         "vite-plus": "catalog:",
       },
     },
+    "apps/claude-code-plugin": {
+      "name": "@9tech.solutions/pruner-claude-code",
+      "version": "0.1.0",
+      "dependencies": {
+        "@9tech.solutions/pruner-domain": "workspace:*",
+        "@9tech.solutions/pruner-models": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/node": "^26.1.1",
+        "typescript": "^7.0.2",
+        "vite-plus": "catalog:",
+      },
+    },
     "packages/domain": {
       "name": "@9tech.solutions/pruner-domain",
       "version": "0.0.0",
@@ -41,6 +54,8 @@
     "vite-plus": "1.1.0",
   },
   "packages": {
+    "@9tech.solutions/pruner-claude-code": ["@9tech.solutions/pruner-claude-code@workspace:apps/claude-code-plugin"],
+
     "@9tech.solutions/pruner-domain": ["@9tech.solutions/pruner-domain@workspace:packages/domain"],
 
     "@9tech.solutions/pruner-models": ["@9tech.solutions/pruner-models@workspace:packages/models"],
