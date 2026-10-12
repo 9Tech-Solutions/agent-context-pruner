@@ -1,14 +1,9 @@
 import type { CompactOptions } from "@9tech.solutions/pruner-domain";
+import { PROVIDERS as MODEL_PROVIDERS, type ProviderKeys } from "@9tech.solutions/pruner-models";
 import type { PluginOptions } from "claude-code";
 
-export const PROVIDERS = [
-  "auto",
-  "typesafe",
-  "cloudflare",
-  "ollama",
-  "custom",
-  "heuristic",
-] as const;
+/** `auto` plus every provider the models package can build. */
+export const PROVIDERS = ["auto", ...MODEL_PROVIDERS] as const;
 
 export type Provider = (typeof PROVIDERS)[number];
 
@@ -33,11 +28,7 @@ export interface HookConfig {
 }
 
 /** Credentials read from the environment, never from the plugin's source. */
-export interface Secrets {
-  readonly typesafeApiKey?: string;
-  readonly cloudflareApiToken?: string;
-  readonly cloudflareAccountId?: string;
-}
+export type Secrets = ProviderKeys;
 
 export const HOOK_DEFAULTS = {
   compactAtPercent: 60,

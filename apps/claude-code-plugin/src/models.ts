@@ -1,10 +1,8 @@
 import { err, ok, type DecisionModel, type Result } from "@9tech.solutions/pruner-domain";
 import {
   createHeuristicModel,
-  createSystemOneModel,
+  createProviderModel,
   type HttpTransport,
-  type ProfileId,
-  type SystemOneConfig,
 } from "@9tech.solutions/pruner-models";
 import type { HookConfig, Provider, Secrets } from "./config.ts";
 
@@ -25,27 +23,6 @@ function autoProvider(config: HookConfig, secrets: Secrets): Exclude<Provider, "
   return "heuristic";
 }
 
-function apiKeyFor(profile: ProfileId, config: HookConfig, secrets: Secrets): string | undefined {
-  if (config.apiKey) return config.apiKey;
-  if (profile === "typesafe") return secrets.typesafeApiKey;
-  if (profile === "cloudflare") return secrets.cloudflareApiToken;
-  return undefined;
-}
-
-function systemOneConfig(
-  profile: ProfileId,
-  config: HookConfig,
-  secrets: Secrets,
-): SystemOneConfig {
-  return {
-    profile,
-    model: config.model,
-    apiKey: apiKeyFor(profile, config, secrets),
-    baseUrl: config.baseUrl,
-    accountId: config.accountId ?? secrets.cloudflareAccountId,
-  };
-}
-
 /** Picks the configured decision model and the rules-based fallback behind it. */
 export function chooseModels(
   config: HookConfig,
@@ -55,7 +32,7 @@ export function chooseModels(
   const provider = config.provider === "auto" ? autoProvider(config, secrets) : config.provider;
   const heuristic = createHeuristicModel();
   if (provider === "heuristic") return ok({ primary: heuristic, fallback: null, notes: [] });
-  const model = createSystemOneModel(systemOneConfig(provider, config, secrets), transport);
+  const model = createProviderModel(provider, config, secrets, transport);
   if (model.ok) {
     const fallback = config.fallbackToHeuristic ? heuristic : null;
     return ok({ primary: model.value, fallback, notes: [] });

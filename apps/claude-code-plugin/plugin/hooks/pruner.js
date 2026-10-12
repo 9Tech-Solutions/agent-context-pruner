@@ -1077,26 +1077,41 @@ function createSystemOneModel(config, transport) {
 	});
 }
 //#endregion
+//#region ../../packages/models/src/providers.ts
+const PROVIDERS$1 = [
+	"typesafe",
+	"cloudflare",
+	"ollama",
+	"custom",
+	"heuristic"
+];
+function environmentKey(provider, keys) {
+	if (provider === "typesafe") return keys.typesafeApiKey;
+	if (provider === "cloudflare") return keys.cloudflareApiToken;
+}
+/**
+* The decision model for `provider`, built the same way in every host: an
+* explicit key wins over the environment's, and a base URL reaches only the
+* local profiles, so a hosted provider's key never goes to another server.
+*/
+function createProviderModel(provider, settings, keys, transport) {
+	if (provider === "heuristic") return ok(createHeuristicModel());
+	const local = provider === "ollama" || provider === "custom";
+	return createSystemOneModel({
+		profile: provider,
+		model: settings.model,
+		apiKey: settings.apiKey ?? environmentKey(provider, keys),
+		baseUrl: local ? settings.baseUrl : void 0,
+		accountId: settings.accountId ?? keys.cloudflareAccountId
+	}, transport);
+}
+//#endregion
 //#region src/models.ts
 /** `auto`: TypeSafe when a key is there, then Cloudflare, then the rules. */
 function autoProvider(config, secrets) {
 	if (config.apiKey || secrets.typesafeApiKey) return "typesafe";
 	if (secrets.cloudflareApiToken && (config.accountId || secrets.cloudflareAccountId)) return "cloudflare";
 	return "heuristic";
-}
-function apiKeyFor(profile, config, secrets) {
-	if (config.apiKey) return config.apiKey;
-	if (profile === "typesafe") return secrets.typesafeApiKey;
-	if (profile === "cloudflare") return secrets.cloudflareApiToken;
-}
-function systemOneConfig(profile, config, secrets) {
-	return {
-		profile,
-		model: config.model,
-		apiKey: apiKeyFor(profile, config, secrets),
-		baseUrl: config.baseUrl,
-		accountId: config.accountId ?? secrets.cloudflareAccountId
-	};
 }
 /** Picks the configured decision model and the rules-based fallback behind it. */
 function chooseModels(config, secrets, transport) {
@@ -1107,7 +1122,7 @@ function chooseModels(config, secrets, transport) {
 		fallback: null,
 		notes: []
 	});
-	const model = createSystemOneModel(systemOneConfig(provider, config, secrets), transport);
+	const model = createProviderModel(provider, config, secrets, transport);
 	if (model.ok) {
 		const fallback = config.fallbackToHeuristic ? heuristic : null;
 		return ok({
@@ -1408,14 +1423,8 @@ async function handleCompact(config, $, e, next) {
 }
 //#endregion
 //#region src/config.ts
-const PROVIDERS = [
-	"auto",
-	"typesafe",
-	"cloudflare",
-	"ollama",
-	"custom",
-	"heuristic"
-];
+/** `auto` plus every provider the models package can build. */
+const PROVIDERS = ["auto", ...PROVIDERS$1];
 const HOOK_DEFAULTS = {
 	compactAtPercent: 60,
 	minReductionRatio: .25,

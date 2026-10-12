@@ -14,9 +14,13 @@ import {
   type CutEvaluation,
   type ModelReport,
 } from "@9tech.solutions/pruner-eval";
-import type { HttpTransport } from "@9tech.solutions/pruner-models";
+import {
+  createProviderModel,
+  keysFromEnv,
+  type HttpTransport,
+  type ProviderId,
+} from "@9tech.solutions/pruner-models";
 import type { EvalArgs } from "./args.ts";
-import { createModel, type Env, type Provider } from "./models.ts";
 import { parseClaudeTranscript } from "./transcript.ts";
 
 /** Everything outside the process the eval touches, injected so tests run without files or network. */
@@ -27,7 +31,7 @@ export interface Io {
   readonly out: (text: string) => void;
   /** Progress and notices, kept apart from the report. */
   readonly progress: (text: string) => void;
-  readonly env: Env;
+  readonly env: Readonly<Record<string, string | undefined>>;
   readonly transport: HttpTransport;
 }
 
@@ -38,7 +42,7 @@ interface Segment {
 }
 
 interface Prepared {
-  readonly provider: Provider;
+  readonly provider: ProviderId;
   readonly model: DecisionModel;
 }
 
@@ -75,9 +79,10 @@ async function loadSegments(args: EvalArgs, io: Io): Promise<Result<Segment[], s
 /** Builds every model before any is asked, so a bad configuration fails before anything is sent. */
 function prepareModels(args: EvalArgs, io: Io): Result<Prepared[], string> {
   const prepared: Prepared[] = [];
+  const keys = keysFromEnv(io.env);
   for (const provider of args.providers) {
-    const model = createModel(provider, args, io.env, io.transport);
-    if (!model.ok) return err(`${provider}: ${model.error}`);
+    const model = createProviderModel(provider, args, keys, io.transport);
+    if (!model.ok) return err(`${provider}: ${model.error.message}`);
     prepared.push({ provider, model: model.value });
   }
   return ok(prepared);

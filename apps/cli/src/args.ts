@@ -1,8 +1,12 @@
 import { parseArgs } from "node:util";
 import { err, ok, type Result } from "@9tech.solutions/pruner-domain";
-import { isProvider, type ModelFlags, type Provider } from "./models.ts";
+import {
+  isProviderId as isProvider,
+  type ProviderId as Provider,
+  type ProviderSettings,
+} from "@9tech.solutions/pruner-models";
 
-export interface EvalArgs extends ModelFlags {
+export interface EvalArgs extends Omit<ProviderSettings, "apiKey"> {
   readonly files: readonly string[];
   readonly providers: readonly Provider[];
   readonly cuts: number;
