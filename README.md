@@ -19,9 +19,17 @@ Hosts: Claude Code first. Codex and Antigravity are planned.
 
 ## Status
 
-Pre-alpha. The core library, the model adapters, the Claude Code plugin and the evaluation CLI
-are built and unit tested, and the plugin has run in live Claude Code 2.1.296 sessions with
-TypeSafe Jev. Nothing is published to npm yet.
+Early release (0.x). The Claude Code plugin has run in live Claude Code 2.1.296 sessions with
+TypeSafe Jev and the rules model. The libraries and the CLI are on npm at 0.1.0:
+
+| Package                                                                                          | What it is                          |
+| ------------------------------------------------------------------------------------------------ | ----------------------------------- |
+| [`@9tech.solutions/pruner-domain`](https://www.npmjs.com/package/@9tech.solutions/pruner-domain) | the core: `compact()` and the port  |
+| [`@9tech.solutions/pruner-models`](https://www.npmjs.com/package/@9tech.solutions/pruner-models) | SystemOne profiles and rules model  |
+| [`@9tech.solutions/pruner-eval`](https://www.npmjs.com/package/@9tech.solutions/pruner-eval)     | the evaluation harness              |
+| [`@9tech.solutions/pruner-cli`](https://www.npmjs.com/package/@9tech.solutions/pruner-cli)       | `agent-context-pruner eval` command |
+
+The Claude Code plugin is installed from this repository, not from npm (below).
 
 ## Install in Claude Code
 
