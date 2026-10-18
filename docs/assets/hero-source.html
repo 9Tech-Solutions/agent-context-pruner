@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>agent-context-pruner README artwork</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    html,
+    body {
+      width: 1600px;
+      height: 650px;
+      margin: 0;
+      overflow: hidden;
+    }
+    body {
+      color: #f5f6ed;
+      background: #101b17;
+      font-family: "Segoe UI", Arial, sans-serif;
+    }
+    .art {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .shade {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, #101b17 0%, #101b17e8 24%, #101b1750 50%, transparent 70%);
+    }
+    main {
+      position: relative;
+      height: 100%;
+      padding: 58px 72px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 17px;
+      font-weight: 650;
+      letter-spacing: 2.5px;
+    }
+    .mark {
+      display: flex;
+      gap: 4px;
+      height: 24px;
+      align-items: center;
+    }
+    .mark i {
+      display: block;
+      width: 4px;
+      height: 15px;
+      background: #cff76a;
+      border-radius: 1px;
+    }
+    .mark i:nth-child(2) {
+      height: 24px;
+    }
+    .mark i:nth-child(4) {
+      height: 9px;
+    }
+    h1 {
+      margin: 62px 0 27px;
+      max-width: 720px;
+      font-size: 91px;
+      line-height: 1.03;
+      font-weight: 650;
+      letter-spacing: -4.7px;
+    }
+    h1 span {
+      color: #cff76a;
+    }
+    p {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.5;
+      color: #c6d0c7;
+      letter-spacing: -0.3px;
+      max-width: 590px;
+    }
+    footer {
+      position: absolute;
+      left: 73px;
+      bottom: 51px;
+      display: flex;
+      gap: 28px;
+      align-items: center;
+      font-family: Consolas, monospace;
+      font-size: 13px;
+      letter-spacing: 1.7px;
+      color: #b5c1b5;
+    }
+    footer span:first-child {
+      color: #cff76a;
+    }
+    .rule {
+      position: absolute;
+      bottom: 91px;
+      left: 73px;
+      width: 544px;
+      height: 1px;
+      background: #b3c4b532;
+    }
+  </style>
+  <img
+    class="art"
+    src="pruner-artwork.png"
+    alt="Glass data ribbons pass through a frame, with selected lime ribbons retained."
+  />
+  <div class="shade"></div>
+  <main>
+    <div class="brand">
+      <span class="mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>AGENT CONTEXT PRUNER
+    </div>
+    <h1>Less history.<br /><span>Same words.</span></h1>
+    <p>Selective context pruning for coding agents.<br />Retained text stays word for word.</p>
+    <div class="rule"></div>
+    <footer>
+      <span>BUILT BY 9TECH</span><span>CLAUDE CODE</span><span>SWAPPABLE SCORERS</span>
+    </footer>
+  </main>
+</html>

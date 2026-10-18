@@ -1,9 +1,23 @@
+<p align="center">
+  <img src="docs/assets/readme-hero.png" alt="agent-context-pruner: less history, same words. Selective pruning keeps retained text word for word." width="100%">
+</p>
+
 # agent-context-pruner
 
-Context compaction for AI coding agents that never summarizes. When the context fills up, a fast
-decision model scores every old tool call and tool result, and only the ones no longer needed
-are dropped or truncated. Everything kept stays word for word: user and assistant text is never
-rewritten.
+<p>
+  <a href="https://9tech-solutions.github.io/agent-context-pruner/docs/playground/">Try the demo</a> &nbsp; / &nbsp;
+  <a href="#install-in-claude-code">Install in Claude Code</a> &nbsp; / &nbsp;
+  <a href="#how-it-works">How it works</a> &nbsp; / &nbsp;
+  <a href="#measuring-a-model">Evaluate your sessions</a>
+</p>
+
+Context pruning for AI coding agents, with swappable decision models. Score old tool calls
+and results, then keep, truncate, or drop them. Retained text stays word for word. User and
+assistant text is never rewritten.
+
+| Keep the words                                               | Choose the scorer                              | Check the trade-off                                            |
+| ------------------------------------------------------------ | ---------------------------------------------- | -------------------------------------------------------------- |
+| Retain original text instead of rewriting it into a summary. | Hosted models, local models, or offline rules. | Measure removal alongside later-reused results that were lost. |
 
 The decision model is swappable:
 
@@ -18,6 +32,34 @@ The decision model is swappable:
 Hosts: Claude Code first. Codex and Antigravity are planned.
 
 Try the evaluator without an API key or model server with the [offline synthetic-session example](examples/synthetic-session-evaluation/README.md). It uses the built-in heuristic, makes no model requests, and shows a synthetic failure case, not real-world savings.
+
+## Try the synthetic demo
+
+Explore the [browser playground](https://9tech-solutions.github.io/agent-context-pruner/docs/playground/): move the keep threshold and inspect the
+recorded keep, truncate, drop, and loss counts. Copy an aggregate summary or download a result
+card. The playground uses precomputed results from the generated fixture, makes no model
+requests, and does not read your sessions.
+
+![The synthetic evaluation playground, showing the trade-off between pruning and losing a later-reused result.](docs/assets/playground-preview.png)
+
+Prefer the terminal? From a clone, run `bun install` once, then:
+
+```sh
+bun apps/cli/src/main.ts eval ./examples/synthetic-session-evaluation/session.jsonl --provider heuristic --preserve 2 --cuts 1
+```
+
+At `0.05`, the synthetic run keeps all 11 calls. At `0.95`, it keeps one, truncates three,
+drops seven, and loses the only later-reused result, with **-24% net reduction after re-reads**.
+These are synthetic outcomes, not evidence of real-world savings. See the
+[fixture and reproduction guide](examples/synthetic-session-evaluation/README.md).
+The raw replay does not run the Claude Code plugin's minimum-reduction fallback.
+
+### Help test it on a real task
+
+We are looking for five Claude Code users with tool-heavy sessions. Run the evaluator locally
+with `--provider heuristic` for zero model requests. Keep transcripts and machine paths private.
+Share aggregate counts, setup blockers, and whether the loss label matched what your next task
+needed, using the [trial report template](docs/trial-report.md).
 
 ## Status
 
