@@ -1,0 +1,249 @@
+[
+  {
+    "model": "heuristic:v2",
+    "points": 1,
+    "scoredCalls": 11,
+    "requests": 0,
+    "ms": 2,
+    "neededShare": 0.09090909090909091,
+    "aucResult": 0.2,
+    "aucCall": 0.2,
+    "keepCall": {
+      "min": 0.9012504626108303,
+      "median": 0.9411522295050683,
+      "max": 0.9828205985452511
+    },
+    "keepResult": {
+      "min": 0.8122523963562356,
+      "median": 0.8857675191023606,
+      "max": 0.9659363289248456
+    },
+    "rows": [
+      {
+        "threshold": 0.05,
+        "kept": 11,
+        "truncated": 0,
+        "dropped": 0,
+        "reduction": 0,
+        "needed": 1,
+        "lost": 0,
+        "lossRate": 0,
+        "netReduction": 0
+      },
+      {
+        "threshold": 0.1,
+        "kept": 11,
+        "truncated": 0,
+        "dropped": 0,
+        "reduction": 0,
+        "needed": 1,
+        "lost": 0,
+        "lossRate": 0,
+        "netReduction": 0
+      },
+      {
+        "threshold": 0.15,
+        "kept": 11,
+        "truncated": 0,
+        "dropped": 0,
+        "reduction": 0,
+        "needed": 1,
+        "lost": 0,
+        "lossRate": 0,
+        "netReduction": 0
+      },
+      {
+        "threshold": 0.2,
+        "kept": 11,
+        "truncated": 0,
+        "dropped": 0,
+        "reduction": 0,
+        "needed": 1,
+        "lost": 0,
+        "lossRate": 0,
+        "netReduction": 0
+      },
+      {
+        "threshold": 0.25,
+        "kept": 11,
+        "truncated": 0,
+        "dropped": 0,
+        "reduction": 0,
+        "needed": 1,
+        "lost": 0,
+        "lossRate": 0,
+        "netReduction": 0
+      },
+      {
+        "threshold": 0.3,
+        "kept": 11,
+        "truncated": 0,
+        "dropped": 0,
+        "reduction": 0,
+        "needed": 1,
+        "lost": 0,
+        "lossRate": 0,
+        "netReduction": 0
+      },
+      {
+        "threshold": 0.35,
+        "kept": 11,
+        "truncated": 0,
+        "dropped": 0,
+        "reduction": 0,
+        "needed": 1,
+        "lost": 0,
+        "lossRate": 0,
+        "netReduction": 0
+      },
+      {
+        "threshold": 0.4,
+        "kept": 11,
+        "truncated": 0,
+        "dropped": 0,
+        "reduction": 0,
+        "needed": 1,
+        "lost": 0,
+        "lossRate": 0,
+        "netReduction": 0
+      },
+      {
+        "threshold": 0.45,
+        "kept": 11,
+        "truncated": 0,
+        "dropped": 0,
+        "reduction": 0,
+        "needed": 1,
+        "lost": 0,
+        "lossRate": 0,
+        "netReduction": 0
+      },
+      {
+        "threshold": 0.5,
+        "kept": 11,
+        "truncated": 0,
+        "dropped": 0,
+        "reduction": 0,
+        "needed": 1,
+        "lost": 0,
+        "lossRate": 0,
+        "netReduction": 0
+      },
+      {
+        "threshold": 0.55,
+        "kept": 11,
+        "truncated": 0,
+        "dropped": 0,
+        "reduction": 0,
+        "needed": 1,
+        "lost": 0,
+        "lossRate": 0,
+        "netReduction": 0
+      },
+      {
+        "threshold": 0.6,
+        "kept": 11,
+        "truncated": 0,
+        "dropped": 0,
+        "reduction": 0,
+        "needed": 1,
+        "lost": 0,
+        "lossRate": 0,
+        "netReduction": 0
+      },
+      {
+        "threshold": 0.65,
+        "kept": 11,
+        "truncated": 0,
+        "dropped": 0,
+        "reduction": 0,
+        "needed": 1,
+        "lost": 0,
+        "lossRate": 0,
+        "netReduction": 0
+      },
+      {
+        "threshold": 0.7,
+        "kept": 11,
+        "truncated": 0,
+        "dropped": 0,
+        "reduction": 0,
+        "needed": 1,
+        "lost": 0,
+        "lossRate": 0,
+        "netReduction": 0
+      },
+      {
+        "threshold": 0.75,
+        "kept": 11,
+        "truncated": 0,
+        "dropped": 0,
+        "reduction": 0,
+        "needed": 1,
+        "lost": 0,
+        "lossRate": 0,
+        "netReduction": 0
+      },
+      {
+        "threshold": 0.8,
+        "kept": 11,
+        "truncated": 0,
+        "dropped": 0,
+        "reduction": 0,
+        "needed": 1,
+        "lost": 0,
+        "lossRate": 0,
+        "netReduction": 0
+      },
+      {
+        "threshold": 0.85,
+        "kept": 8,
+        "truncated": 3,
+        "dropped": 0,
+        "reduction": 0,
+        "needed": 1,
+        "lost": 0,
+        "lossRate": 0,
+        "netReduction": 0
+      },
+      {
+        "threshold": 0.9,
+        "kept": 5,
+        "truncated": 6,
+        "dropped": 0,
+        "reduction": 0,
+        "needed": 1,
+        "lost": 0,
+        "lossRate": 0,
+        "netReduction": 0
+      },
+      {
+        "threshold": 0.95,
+        "kept": 1,
+        "truncated": 3,
+        "dropped": 7,
+        "reduction": -0.22857142857142856,
+        "needed": 1,
+        "lost": 1,
+        "lossRate": 1,
+        "netReduction": -0.24081632653061225
+      }
+    ],
+    "recommended": {
+      "threshold": 0.05,
+      "kept": 11,
+      "truncated": 0,
+      "dropped": 0,
+      "reduction": 0,
+      "needed": 1,
+      "lost": 0,
+      "lossRate": 0,
+      "netReduction": 0
+    },
+    "options": {
+      "headChars": 300,
+      "maxLossRate": 1
+    },
+    "errors": []
+  }
+]

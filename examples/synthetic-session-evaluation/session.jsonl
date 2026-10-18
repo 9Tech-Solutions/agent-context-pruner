@@ -1,0 +1,30 @@
+{"type": "user", "message": {"role": "user", "content": "Refactor the example value modules."}}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "r1", "name": "Read", "input": {"file_path": "src/file1.ts"}}]}}
+{"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "r1", "content": [{"type": "text", "text": "1\texport const valueNumber1 = computeSomething(1);"}]}]}}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "r2", "name": "Read", "input": {"file_path": "src/file2.ts"}}]}}
+{"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "r2", "content": [{"type": "text", "text": "1\texport const valueNumber2 = computeSomething(2);"}]}]}}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "r3", "name": "Read", "input": {"file_path": "src/file3.ts"}}]}}
+{"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "r3", "content": [{"type": "text", "text": "1\texport const valueNumber3 = computeSomething(3);"}]}]}}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "r4", "name": "Read", "input": {"file_path": "src/file4.ts"}}]}}
+{"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "r4", "content": [{"type": "text", "text": "1\texport const valueNumber4 = computeSomething(4);"}]}]}}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "r5", "name": "Read", "input": {"file_path": "src/file5.ts"}}]}}
+{"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "r5", "content": [{"type": "text", "text": "1\texport const valueNumber5 = computeSomething(5);"}]}]}}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "r6", "name": "Read", "input": {"file_path": "src/file6.ts"}}]}}
+{"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "r6", "content": [{"type": "text", "text": "1\texport const valueNumber6 = computeSomething(6);"}]}]}}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "r7", "name": "Read", "input": {"file_path": "src/file7.ts"}}]}}
+{"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "r7", "content": [{"type": "text", "text": "1\texport const valueNumber7 = computeSomething(7);"}]}]}}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "r8", "name": "Read", "input": {"file_path": "src/file8.ts"}}]}}
+{"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "r8", "content": [{"type": "text", "text": "1\texport const valueNumber8 = computeSomething(8);"}]}]}}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "r9", "name": "Read", "input": {"file_path": "src/file9.ts"}}]}}
+{"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "r9", "content": [{"type": "text", "text": "1\texport const valueNumber9 = computeSomething(9);"}]}]}}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "r10", "name": "Read", "input": {"file_path": "src/file10.ts"}}]}}
+{"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "r10", "content": [{"type": "text", "text": "1\texport const valueNumber10 = computeSomething(10);"}]}]}}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "r11", "name": "Read", "input": {"file_path": "src/file11.ts"}}]}}
+{"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "r11", "content": [{"type": "text", "text": "1\texport const valueNumber11 = computeSomething(11);"}]}]}}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "r12", "name": "Read", "input": {"file_path": "src/file12.ts"}}]}}
+{"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "r12", "content": [{"type": "text", "text": "1\texport const valueNumber12 = computeSomething(12);"}]}]}}
+{"type": "user", "message": {"role": "user", "content": "Now update file3."}}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "e1", "name": "Edit", "input": {"file_path": "src/file3.ts", "old_string": "export const valueNumber3 = computeSomething(3);"}}]}}
+{"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "e1", "content": "updated"}]}}
+{"type": "system", "subtype": "compact_boundary"}
+{"type": "user", "message": {"role": "user", "content": "After the synthetic compaction."}}

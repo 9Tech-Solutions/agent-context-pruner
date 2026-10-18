@@ -17,6 +17,8 @@ The decision model is swappable:
 
 Hosts: Claude Code first. Codex and Antigravity are planned.
 
+Try the evaluator without an API key or model server with the [offline synthetic-session example](examples/synthetic-session-evaluation/README.md). It uses the built-in heuristic, makes no model requests, and shows a synthetic failure case, not real-world savings.
+
 ## Status
 
 Early release (0.x). The Claude Code plugin has run in live Claude Code 2.1.296 sessions with
