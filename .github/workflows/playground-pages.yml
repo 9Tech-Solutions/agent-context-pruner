@@ -1,0 +1,43 @@
+name: Synthetic evaluation playground
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - docs/playground/**
+      - examples/synthetic-session-evaluation/report.json
+      - .github/workflows/playground-pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Verify the report explorer
+        run: node --test docs/playground/playground.test.js
+      - name: Assemble the public demo
+        run: |
+          mkdir -p _site/docs/playground _site/examples/synthetic-session-evaluation
+          cp docs/playground/index.html docs/playground/styles.css docs/playground/app.js docs/playground/playground-core.js _site/docs/playground/
+          cp examples/synthetic-session-evaluation/report.json _site/examples/synthetic-session-evaluation/
+          printf '%s\n' '<!doctype html><html lang="en"><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=docs/playground/"><title>agent-context-pruner playground</title><a href="docs/playground/">Open the synthetic evaluation playground</a></html>' > _site/index.html
+      - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
+      - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
+        with:
+          path: _site
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5

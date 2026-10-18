@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Synthetic evaluation playground: agent-context-pruner</title>
+    <meta
+      name="description"
+      content="Explore a synthetic context-pruning evaluation. Inspect recorded keep thresholds, lost results, and character reduction without installing the CLI."
+    />
+    <meta property="og:title" content="Explore the cut: agent-context-pruner" />
+    <meta
+      property="og:description"
+      content="An interactive synthetic evaluation of what context pruning keeps and loses. No installation or model requests."
+    />
+    <meta
+      property="og:image"
+      content="https://raw.githubusercontent.com/9Tech-Solutions/agent-context-pruner/main/docs/assets/readme-hero.png"
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2317231f'/%3E%3Cpath d='M8 12v8m8-13v18m8-11v4' stroke='%23cff76a' stroke-width='4'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!-- Persistent Synthetic Notice Banner -->
+    <header class="persistent-banner" role="banner">
+      <div class="banner-tag">SYNTHETIC FIXTURE • PRECOMPUTED EVALUATION</div>
+      <div class="banner-sub">
+        Aggregate data from session.jsonl. Not real-world savings or live session pruning.
+      </div>
+    </header>
+
+    <main class="app-container" id="main-content">
+      <!-- Editorial Header -->
+      <section class="instrument-header" aria-labelledby="page-title">
+        <div class="header-meta">
+          <span>Fixture: session.jsonl</span>
+          <span>•</span>
+          <span>Model: heuristic:v2</span>
+          <span>•</span>
+          <span>Calls: 11</span>
+          <span>•</span>
+          <span>Requests: 0</span>
+        </div>
+        <h1 id="page-title">Explore the cut.</h1>
+        <p>
+          Move the threshold. Inspect what is kept, truncated, dropped, and lost across 11 generated
+          tool calls. No installation or model requests.
+        </p>
+      </section>
+
+      <!-- Accessible Error State (Hidden when data loads successfully) -->
+      <section id="error-banner" class="alert-error" role="alert" aria-live="assertive">
+        <h2>The example could not be loaded</h2>
+        <p id="error-message">
+          Unable to load data from
+          <code>../../examples/synthetic-session-evaluation/report.json</code>. If viewing directly
+          via <code>file://</code>, local browser security blocks cross-file requests.
+        </p>
+        <p>
+          From the repository root, run <code>python -m http.server 8000</code>, then open
+          <code>http://localhost:8000/docs/playground/</code>.
+        </p>
+      </section>
+
+      <!-- Interactive Control Panel -->
+      <section class="control-instrument" aria-label="Evaluation Threshold Slider">
+        <div class="slider-top-row">
+          <label for="threshold-slider" class="slider-label">Keep Threshold</label>
+          <div class="threshold-display">
+            <span class="threshold-number" id="display-threshold">0.05</span>
+            <span class="threshold-unit">score cutoff (0.05..0.95)</span>
+          </div>
+        </div>
+
+        <div class="slider-container">
+          <input
+            type="range"
+            id="threshold-slider"
+            min="0.05"
+            max="0.95"
+            step="0.05"
+            value="0.05"
+            aria-label="Keep threshold slider"
+            aria-valuemin="0.05"
+            aria-valuemax="0.95"
+            aria-valuenow="0.05"
+          />
+          <div class="slider-scale" aria-hidden="true">
+            <span>0.05 (Min)</span>
+            <span>0.25</span>
+            <span>0.50</span>
+            <span>0.75</span>
+            <span>0.95 (Max)</span>
+          </div>
+        </div>
+
+        <div class="preset-bar" role="group" aria-label="Reference threshold presets">
+          <span class="preset-title">Presets:</span>
+          <button type="button" class="btn-preset active" data-threshold="0.05">
+            0.05 Baseline
+          </button>
+          <button type="button" class="btn-preset" data-threshold="0.85">0.85 Truncation</button>
+          <button type="button" class="btn-preset" data-threshold="0.90">0.90 Shift</button>
+          <button type="button" class="btn-preset" data-threshold="0.95">0.95 Failure</button>
+        </div>
+        <p id="scenario-status" class="scenario-status" role="status">
+          Baseline: all 11 calls are kept. Nothing is lost and nothing is removed.
+        </p>
+      </section>
+
+      <!-- Dark Result Band -->
+      <section
+        class="dark-result-band"
+        aria-label="Precomputed Evaluation Results"
+        aria-live="polite"
+      >
+        <div class="band-top-grid">
+          <!-- Metric 1: Net Reduction -->
+          <div class="metric-cell">
+            <div class="metric-label">Net after modeled re-reads</div>
+            <div class="metric-value neutral" id="metric-net-reduction">0%</div>
+            <div class="metric-detail" id="metric-gross-reduction">Character reduction: 0%</div>
+          </div>
+
+          <!-- Metric 2: Call Actions -->
+          <div class="metric-cell">
+            <div class="metric-label">Scored Actions (11 Calls)</div>
+            <div class="action-counts">
+              <span class="action-count-kept" id="count-kept">11 Kept</span>
+              <span class="action-count-trunc" id="count-trunc">0 Truncated</span>
+              <span class="action-count-drop" id="count-drop">0 Dropped</span>
+            </div>
+            <div class="metric-detail" id="action-summary-text">
+              All tool outputs retained word-for-word
+            </div>
+          </div>
+
+          <!-- Metric 3: Necessity & Loss -->
+          <div class="metric-cell">
+            <div class="metric-label">Later-reused results lost</div>
+            <div class="metric-value neutral" id="metric-lost">0 / 1</div>
+            <div class="metric-detail" id="metric-loss-detail">
+              0% loss in this one-result fixture.
+            </div>
+          </div>
+        </div>
+
+        <!-- Subtle Proportional Bar -->
+        <div class="proportional-bar-wrapper">
+          <div class="proportional-bar-label">
+            <span>Action Distribution</span>
+            <span id="bar-percentage-label">Kept: 100% • Truncated: 0% • Dropped: 0%</span>
+          </div>
+          <div
+            class="segment-bar"
+            role="img"
+            aria-label="Kept, truncated, and dropped proportions are listed above"
+          >
+            <div class="seg-kept" id="bar-seg-kept" style="width: 100%"></div>
+            <div class="seg-trunc" id="bar-seg-trunc" style="width: 0%"></div>
+            <div class="seg-drop" id="bar-seg-drop" style="width: 0%"></div>
+          </div>
+          <div class="segment-legend">
+            <div class="segment-legend-item">
+              <span class="legend-swatch swatch-kept"></span>
+              <span>Kept</span>
+            </div>
+            <div class="segment-legend-item">
+              <span class="legend-swatch swatch-trunc"></span>
+              <span>Truncated</span>
+            </div>
+            <div class="segment-legend-item">
+              <span class="legend-swatch swatch-drop"></span>
+              <span>Dropped</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Technical Explanation Panels -->
+      <section class="editorial-grid" aria-label="Tradeoff explanations">
+        <div class="editorial-card">
+          <h3>Why negative reduction occurs</h3>
+          <p>
+            At <span class="code-inline">0.95</span>, this replay drops 7 calls, truncates 3, and
+            loses one later-reused result. The bookkeeping notes added by pruning also take space.
+          </p>
+          <p>
+            The evaluator measures characters and charges an estimated full re-read for each lost
+            result. At that threshold it reports
+            <strong id="card-net-quote">-24% net reduction after modeled re-reads</strong>. This is
+            a retrospective estimate, not an observed re-read or a measurement of billing or
+            subscription usage.
+          </p>
+          <p>
+            This explorer shows raw threshold replays. The live Claude Code plugin falls back to
+            built-in summarization when pruning cannot meet its configured reduction target (25% by
+            default). That size check does not guarantee future usefulness.
+          </p>
+        </div>
+
+        <div class="editorial-card">
+          <h3>What this example can tell you</h3>
+          <p>
+            These are 19 recorded thresholds from one synthetic fixture. They show aggregate
+            outcomes, not individual call identities or a real coding task's success rate.
+          </p>
+          <p>
+            At <span class="code-inline">0.05</span>, all 11 calls are kept and nothing is lost. The
+            reuse label detects text copied later. It can miss information used to make a decision
+            without being copied.
+          </p>
+        </div>
+      </section>
+
+      <!-- Share & Export Toolbar -->
+      <section class="toolbar-container" aria-label="Sharing and export actions">
+        <div class="toolbar-actions">
+          <button type="button" id="btn-copy-markdown" class="btn-action">
+            Copy Markdown Summary
+          </button>
+          <button type="button" id="btn-download-card" class="btn-action">
+            Download PNG Result Card
+          </button>
+          <button type="button" id="btn-share-link" class="btn-action btn-secondary">
+            Copy Share Link
+          </button>
+        </div>
+        <div id="copy-feedback" class="copy-feedback" aria-live="polite"></div>
+      </section>
+
+      <!-- Links Section -->
+      <section class="links-section" aria-label="Repository and documentation links">
+        <div class="links-grid">
+          <div class="doc-link-item">
+            <a
+              href="https://github.com/9Tech-Solutions/agent-context-pruner/blob/main/examples/synthetic-session-evaluation/session.jsonl"
+              target="_blank"
+              rel="noopener"
+              >Synthetic session.jsonl</a
+            >
+            <span>Raw synthetic session input fixture</span>
+          </div>
+          <div class="doc-link-item">
+            <a
+              href="../../examples/synthetic-session-evaluation/report.json"
+              target="_blank"
+              rel="noopener"
+              >Precomputed report.json</a
+            >
+            <span>19 threshold rows from offline evaluator</span>
+          </div>
+          <div class="doc-link-item">
+            <a
+              href="https://github.com/9Tech-Solutions/agent-context-pruner/tree/main/examples/synthetic-session-evaluation"
+              target="_blank"
+              rel="noopener"
+              >Evaluation guide</a
+            >
+            <span>How synthetic evaluation runs and failure modes</span>
+          </div>
+          <div class="doc-link-item">
+            <a
+              href="https://github.com/9Tech-Solutions/agent-context-pruner/tree/main/apps/cli"
+              target="_blank"
+              rel="noopener"
+              >CLI instructions</a
+            >
+            <span>Run evaluation on custom session files</span>
+          </div>
+        </div>
+
+        <p class="trial-invite">
+          Have a tool-heavy session? Follow the CLI guide above, then share only aggregates with the
+          <a
+            href="https://github.com/9Tech-Solutions/agent-context-pruner/blob/main/docs/trial-report.md"
+            >trial report template</a
+          >. Keep transcripts and machine paths private.
+        </p>
+
+        <!-- Voluntary GitHub star link after results -->
+        <footer class="voluntary-star-bar">
+          <span>Built by 9Tech Solutions. Check the repository for the current license.</span>
+          <span>
+            <a
+              href="https://github.com/9Tech-Solutions/agent-context-pruner"
+              target="_blank"
+              rel="noopener"
+            >
+              View the repo / star if useful
+            </a>
+          </span>
+        </footer>
+      </section>
+    </main>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
