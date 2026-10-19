@@ -1,6 +1,7 @@
 # dependencies and builds
 node_modules/
 dist/
+_site/
 *.tsbuildinfo
 .venv/
 __pycache__/

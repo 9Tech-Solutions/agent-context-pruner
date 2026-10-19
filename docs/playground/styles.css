@@ -40,6 +40,65 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+.skip-link {
+  position: absolute;
+  top: -80px;
+  left: 16px;
+  padding: 12px;
+  background: var(--ink);
+  color: var(--bg);
+  z-index: 10;
+}
+
+.skip-link:focus {
+  top: 12px;
+}
+
+.project-nav {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 12px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+}
+
+.project-nav div {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.project-nav a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--ink);
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.project-nav a:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.project-nav .project-home {
+  font-family: var(--font-mono);
+  font-size: 19px;
+  font-weight: 700;
+  gap: 12px;
+}
+
+.project-home span {
+  font-family: var(--font-sans);
+  color: var(--ink-secondary);
+  font-size: 13px;
+  font-weight: 400;
+}
+
 .scenario-status {
   margin: 18px 0 0;
   max-width: 720px;

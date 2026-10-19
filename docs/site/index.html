@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Agent Context Pruner | Less history. Same words.</title>
+    <meta
+      name="description"
+      content="Selective context pruning for coding agents. Explore the Claude Code plugin, evaluate saved sessions locally, and inspect a synthetic browser demo."
+    />
+    <link rel="canonical" href="https://9tech-solutions.github.io/agent-context-pruner/" />
+    <meta property="og:title" content="Agent Context Pruner | Less history. Same words." />
+    <meta
+      property="og:description"
+      content="A Claude Code plugin and offline evaluation CLI for selective context pruning."
+    />
+    <meta
+      property="og:image"
+      content="https://9tech-solutions.github.io/agent-context-pruner/assets/readme-hero.png"
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2317231f'/%3E%3Cpath d='M8 12v8m8-13v18m8-11v4' stroke='%23cff76a' stroke-width='4'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header wrap">
+      <a class="brand" href="./" aria-label="Agent Context Pruner home">
+        <svg aria-hidden="true" width="32" height="32" viewBox="0 0 32 32">
+          <rect width="32" height="32" rx="6" fill="currentColor" />
+          <path d="M8 12v8m8-13v18m8-11v4" stroke="#cff76a" stroke-width="3" />
+        </svg>
+        <span>pruner<span class="brand-by">by 9TECH</span></span>
+      </a>
+      <nav aria-label="Main navigation">
+        <a href="#how-it-works">How it works</a>
+        <a href="docs/playground/">Playground</a>
+        <a href="https://github.com/9Tech-Solutions/agent-context-pruner#readme">Docs</a>
+      </nav>
+      <a class="source-link" href="https://github.com/9Tech-Solutions/agent-context-pruner"
+        ><svg
+          aria-hidden="true"
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+        >
+          <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9Z" />
+        </svg>
+        Star on GitHub <span aria-hidden="true">↗</span></a
+      >
+    </header>
+
+    <main id="main">
+      <section class="hero wrap" aria-labelledby="hero-title">
+        <img
+          class="hero-art"
+          src="assets/pruner-artwork.png"
+          width="1942"
+          height="809"
+          fetchpriority="high"
+          alt="Lime and gray ribbons passing through a frame, illustrating a filter for tool history."
+        />
+        <div class="hero-copy">
+          <p class="eyebrow">AGENT CONTEXT PRUNER <span>/</span> CLAUDE CODE</p>
+          <h1 id="hero-title">Less history.<br /><span>Same words.</span></h1>
+          <p class="hero-description">
+            Selective context pruning for coding agents. Keep chosen tool results word for word,
+            with a Claude Code plugin and an offline evaluation CLI.
+          </p>
+          <div class="hero-actions">
+            <a class="button button-lime" href="#get-started"
+              >Get started <span aria-hidden="true">↓</span></a
+            >
+            <a class="button button-outline" href="docs/playground/"
+              >Try the playground <span aria-hidden="true">↗</span></a
+            >
+          </div>
+          <p class="hero-note">Your choice of scorer. Your threshold to evaluate.</p>
+        </div>
+        <span class="art-caption">SELECTIVE CONTEXT PRUNING / ILLUSTRATION</span>
+      </section>
+
+      <div class="capabilities wrap" aria-label="Project components">
+        <span><span class="status-dot" aria-hidden="true"></span> Claude Code plugin</span>
+        <span>Offline evaluation CLI</span>
+        <span>Swappable scorers</span>
+        <a href="https://github.com/9Tech-Solutions/agent-context-pruner"
+          >Source on GitHub <span aria-hidden="true">↗</span></a
+        >
+      </div>
+
+      <section id="how-it-works" class="how section wrap" aria-labelledby="how-title">
+        <div class="section-heading">
+          <p class="eyebrow">01 / THE APPROACH</p>
+          <h2 id="how-title">Make room.<br />Keep the original.</h2>
+          <p>
+            Tool history builds up as an agent works. Pruner selects which calls and results to
+            retain. The text it keeps stays word for word.
+          </p>
+          <a
+            class="text-link"
+            href="https://github.com/9Tech-Solutions/agent-context-pruner#how-it-works"
+            >Read the architecture <span aria-hidden="true">↗</span></a
+          >
+        </div>
+        <div class="steps">
+          <article class="step">
+            <span class="step-number">01</span>
+            <div>
+              <h3>Pair and protect</h3>
+              <p>
+                Match each tool call to its result. Pin the first message and the newest messages so
+                they stay in context.
+              </p>
+            </div>
+          </article>
+          <article class="step">
+            <span class="step-number">02</span>
+            <div>
+              <h3>Score what stays</h3>
+              <p>
+                A swappable scorer judges whether to retain each call and its full result. Use
+                built-in rules or configure a model provider.
+              </p>
+            </div>
+          </article>
+          <article class="step">
+            <span class="step-number">03</span>
+            <div>
+              <h3>Keep, truncate, or drop</h3>
+              <p>
+                Your threshold decides the cut. Kept text is unchanged; truncated results keep a
+                short head; dropped calls leave a note by default.
+              </p>
+            </div>
+          </article>
+          <p class="method-note">
+            A dropped result may be needed later. Evaluate the tradeoff on your own sessions before
+            choosing a threshold.
+          </p>
+        </div>
+      </section>
+
+      <section class="demo-section" aria-labelledby="demo-title">
+        <div class="wrap demo-layout">
+          <div class="demo-copy">
+            <p class="eyebrow">02 / TRY IT IN YOUR BROWSER</p>
+            <h2 id="demo-title">See what<br />the cut changes.</h2>
+            <p>
+              Move the threshold and inspect what stays, what goes, and which later-needed result is
+              lost in a small synthetic example.
+            </p>
+            <p class="demo-detail">
+              No installation, account, or model requests. The playground explores a precomputed
+              fixture. It measures characters and modeled re-reads, not real-task success or
+              subscription savings.
+            </p>
+            <a class="button button-lime" href="docs/playground/"
+              >Open the playground <span aria-hidden="true">↗</span></a
+            >
+            <a
+              class="demo-source"
+              href="https://github.com/9Tech-Solutions/agent-context-pruner/tree/main/examples/synthetic-session-evaluation"
+              >Inspect the synthetic example <span aria-hidden="true">↗</span></a
+            >
+          </div>
+          <a
+            class="demo-preview"
+            href="docs/playground/"
+            aria-label="Open the synthetic evaluation playground"
+          >
+            <div class="preview-chrome" aria-hidden="true">
+              <span></span><span></span><span></span
+              ><span class="preview-label">pruner / synthetic evaluation</span
+              ><span class="preview-arrow">↗</span>
+            </div>
+            <img
+              src="assets/playground-preview.png"
+              width="1280"
+              height="1060"
+              loading="lazy"
+              alt="Actual playground at threshold 0.05: all 11 calls kept, no truncation or drops, and zero of one needed results lost."
+            />
+          </a>
+        </div>
+      </section>
+
+      <section id="get-started" class="section wrap" aria-labelledby="start-title">
+        <div class="start-heading">
+          <div>
+            <p class="eyebrow">03 / GET STARTED</p>
+            <h2 id="start-title">Start with a session.</h2>
+          </div>
+          <p>
+            Explore a saved transcript first, or install the plugin in a separate Claude Code
+            session.
+          </p>
+        </div>
+        <div class="install-grid">
+          <article class="install-option">
+            <div class="install-heading">
+              <span class="label">OFFLINE CLI</span
+              ><span class="install-tag">No model requests with rules</span>
+            </div>
+            <h3>Evaluate before you prune.</h3>
+            <p>
+              Point the CLI at a saved Claude Code session. The heuristic scorer runs locally and
+              needs no model API credentials.
+            </p>
+            <div class="terminal">
+              <div class="terminal-label">Terminal</div>
+              <pre><code>npx @9tech.solutions/pruner-cli eval ./session.jsonl --provider heuristic</code></pre>
+            </div>
+            <p class="install-note">
+              This evaluates saved history. It does not prune a live session.
+            </p>
+            <a
+              class="text-link"
+              href="https://github.com/9Tech-Solutions/agent-context-pruner/tree/main/examples/synthetic-session-evaluation"
+              >Run the included example <span aria-hidden="true">↗</span></a
+            >
+          </article>
+          <article class="install-option">
+            <div class="install-heading">
+              <span class="label">CLAUDE CODE PLUGIN</span
+              ><span class="install-tag">Function-hook early access</span>
+            </div>
+            <h3>Use it at compaction.</h3>
+            <p>
+              In Claude Code 2.1.275 or later, enter this at the Claude Code prompt. Add the
+              marketplace when prompted, then choose a scope.
+            </p>
+            <div class="terminal">
+              <div class="terminal-label">Claude Code prompt</div>
+              <pre><code>/plugin install agent-context-pruner --marketplace 9Tech-Solutions/agent-context-pruner</code></pre>
+            </div>
+            <p class="install-note">
+              API-backed scorers may need credentials and receive session context. Check provider
+              settings before use.
+            </p>
+            <a
+              class="text-link"
+              href="https://github.com/9Tech-Solutions/agent-context-pruner#install-in-claude-code"
+              >Installation and provider settings <span aria-hidden="true">↗</span></a
+            >
+          </article>
+        </div>
+      </section>
+
+      <section class="faq section wrap" aria-labelledby="faq-title">
+        <div class="section-heading">
+          <p class="eyebrow">A FEW DETAILS</p>
+          <h2 id="faq-title">Before you try it.</h2>
+          <p>
+            More setup details and configuration options are in the
+            <a href="https://github.com/9Tech-Solutions/agent-context-pruner#readme"
+              >documentation</a
+            >.
+          </p>
+        </div>
+        <div class="questions">
+          <details>
+            <summary>Does this rewrite retained text?</summary>
+            <p>
+              No. Kept content stays word for word. A result can also be truncated to a short head,
+              or dropped with its call. Those actions are distinct from keeping it whole.
+            </p>
+          </details>
+          <details>
+            <summary>Do I need model API credits?</summary>
+            <p>
+              The heuristic scorer makes zero model requests. Network-backed scorers need their
+              provider setup and may have usage costs. The browser playground needs neither an API
+              key nor model credits.
+            </p>
+          </details>
+          <details>
+            <summary>Does the demo prove savings?</summary>
+            <p>
+              No. It explores a generated fixture and measures characters, with modeled full
+              re-reads for lost results. It does not establish token, billing, subscription-usage,
+              or real-task improvements.
+            </p>
+          </details>
+          <details>
+            <summary>Which agents are supported?</summary>
+            <p>
+              The published plugin targets Claude Code. The CLI evaluates saved Claude Code sessions
+              offline. See the repository for current compatibility and setup requirements.
+            </p>
+          </details>
+        </div>
+      </section>
+
+      <section class="contribute wrap" aria-labelledby="contribute-title">
+        <div>
+          <p class="eyebrow">BUILT BY 9TECH SOLUTIONS</p>
+          <h2 id="contribute-title">Try it. Tell us what broke.</h2>
+          <p>
+            Share setup blockers or aggregate evaluation results. Keep transcripts and machine paths
+            private.
+          </p>
+        </div>
+        <div class="contribute-actions">
+          <a
+            class="button button-dark"
+            href="https://github.com/9Tech-Solutions/agent-context-pruner/issues"
+            >Share feedback <span aria-hidden="true">↗</span></a
+          ><a
+            class="text-link"
+            href="https://github.com/9Tech-Solutions/agent-context-pruner/blob/main/CONTRIBUTING.md"
+            >Contribute to the project <span aria-hidden="true">↗</span></a
+          >
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer wrap">
+      <span>© 2026 9Tech Solutions</span>
+      <div>
+        <a href="https://github.com/9Tech-Solutions/agent-context-pruner">GitHub</a
+        ><a href="https://github.com/9Tech-Solutions/agent-context-pruner#readme">Documentation</a
+        ><a href="https://github.com/9Tech-Solutions/agent-context-pruner/blob/main/LICENSE"
+          >PolyForm Shield 1.0.0</a
+        >
+      </div>
+    </footer>
+  </body>
+</html>

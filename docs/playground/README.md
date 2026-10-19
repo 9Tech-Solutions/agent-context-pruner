@@ -34,6 +34,10 @@ Then open `http://localhost:8000/docs/playground/` in your browser.
 Use HTTP rather than `file://`: browser ES modules and relative fetches require it. The
 playground uses the canonical report in `examples/`, without a second embedded copy to maintain.
 
+To preview the project homepage and its navigation as deployed, follow
+[`docs/site/README.md`](../site/README.md). Previously shared `docs/playground/` URLs still open
+the evaluator.
+
 ## Running tests
 
 The playground logic and export formats are verified using Node's built-in test runner:
