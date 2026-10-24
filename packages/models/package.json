@@ -7,7 +7,7 @@
   "bugs": {
     "url": "https://github.com/9Tech-Solutions/agent-context-pruner/issues"
   },
-  "license": "SEE LICENSE IN LICENSE",
+  "license": "MIT",
   "author": "9Tech Solutions <info@9tech.solutions>",
   "repository": {
     "type": "git",

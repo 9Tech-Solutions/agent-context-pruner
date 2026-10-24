@@ -1,7 +1,7 @@
 # Contributing
 
 Issues and pull requests are welcome. By submitting a contribution you agree that it is licensed
-under the project's license, [PolyForm Shield 1.0.0](LICENSE).
+under the project's license, [MIT](LICENSE).
 
 ## Set up
 

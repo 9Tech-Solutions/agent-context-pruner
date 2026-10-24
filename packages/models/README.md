@@ -16,4 +16,4 @@ Network access goes only through the `HttpTransport` you pass, so the same code 
 Node, Bun, or a Claude Code hook. A hosted provider's key is only ever sent to that provider's
 own host.
 
-Licensed under [PolyForm Shield 1.0.0](https://github.com/9Tech-Solutions/agent-context-pruner/blob/main/LICENSE).
+Licensed under [MIT](https://github.com/9Tech-Solutions/agent-context-pruner/blob/main/LICENSE).

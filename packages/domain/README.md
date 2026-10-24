@@ -18,4 +18,4 @@ if (result.ok) console.log(result.value.stats);
 A model is anything implementing the `DecisionModel` port. Ready-made ones are in
 [`@9tech.solutions/pruner-models`](https://www.npmjs.com/package/@9tech.solutions/pruner-models).
 
-Licensed under [PolyForm Shield 1.0.0](https://github.com/9Tech-Solutions/agent-context-pruner/blob/main/LICENSE).
+Licensed under [MIT](https://github.com/9Tech-Solutions/agent-context-pruner/blob/main/LICENSE).

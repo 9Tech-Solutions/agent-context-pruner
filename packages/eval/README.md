@@ -9,4 +9,4 @@ reports the reduction, the re-reads it would cause, the net saving, and a thresh
 Most people want the command line instead:
 [`@9tech.solutions/pruner-cli`](https://www.npmjs.com/package/@9tech.solutions/pruner-cli).
 
-Licensed under [PolyForm Shield 1.0.0](https://github.com/9Tech-Solutions/agent-context-pruner/blob/main/LICENSE).
+Licensed under [MIT](https://github.com/9Tech-Solutions/agent-context-pruner/blob/main/LICENSE).

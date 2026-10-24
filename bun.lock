@@ -11,7 +11,7 @@
     },
     "apps/claude-code-plugin": {
       "name": "@9tech.solutions/pruner-claude-code",
-      "version": "0.1.0",
+      "version": "0.3.1",
       "dependencies": {
         "@9tech.solutions/pruner-domain": "workspace:*",
         "@9tech.solutions/pruner-models": "workspace:*",
@@ -41,7 +41,7 @@
     },
     "packages/domain": {
       "name": "@9tech.solutions/pruner-domain",
-      "version": "0.0.0",
+      "version": "0.1.0",
       "devDependencies": {
         "@types/node": "^26.1.1",
         "bumpp": "^11.1.0",
@@ -51,7 +51,7 @@
     },
     "packages/eval": {
       "name": "@9tech.solutions/pruner-eval",
-      "version": "0.0.0",
+      "version": "0.1.0",
       "dependencies": {
         "@9tech.solutions/pruner-domain": "workspace:*",
       },
@@ -64,7 +64,7 @@
     },
     "packages/models": {
       "name": "@9tech.solutions/pruner-models",
-      "version": "0.0.0",
+      "version": "0.1.0",
       "dependencies": {
         "@9tech.solutions/pruner-domain": "workspace:*",
       },

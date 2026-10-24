@@ -17,5 +17,5 @@ or the rest of the checkout. GitHub Actions publishes the same output to GitHub 
 The artwork and evaluator screenshot come from `docs/assets/`. The homepage uses relative
 links so both the local preview and GitHub's `/agent-context-pruner/` project path work.
 
-The public license is PolyForm Shield 1.0.0. Check `origin/main:LICENSE` before changing the
-website's license text; local license work may be unpublished.
+The license footer matches the repository's MIT `LICENSE`. Publish the license change with
+the website update, and verify the deployed branch before making public licensing claims.

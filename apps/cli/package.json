@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Command line for agent-context-pruner: evaluate decision models against recorded agent sessions.",
-  "license": "SEE LICENSE IN LICENSE",
+  "license": "MIT",
   "author": "9Tech Solutions <info@9tech.solutions>",
   "repository": {
     "type": "git",

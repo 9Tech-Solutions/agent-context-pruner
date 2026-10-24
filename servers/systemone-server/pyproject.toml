@@ -3,7 +3,7 @@ name = "pruner-systemone-server"
 version = "0.1.0"
 description = "A /v1/systemone server for agent-context-pruner around any model with a system_one() method, such as LiquidAI/d1-3B."
 readme = "README.md"
-license = "LicenseRef-PolyForm-Shield-1.0.0"
+license = "MIT"
 authors = [{ name = "9Tech Solutions", email = "info@9tech.solutions" }]
 requires-python = ">=3.12"
 dependencies = []

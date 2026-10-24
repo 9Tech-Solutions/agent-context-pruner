@@ -77,7 +77,8 @@ direction. `packages/eval` depends on the domain only.
 
 ## Licensing
 
-- The project is under PolyForm Shield 1.0.0 (`LICENSE`): free to use, fork and contribute, but
-  not to provide a competing product. Call it "source-available", not "open source".
+- The source uses the MIT license (`LICENSE`). Before public claims or submissions, verify the published target branch, not only the worktree. Trigger: promotion after a local license change; root cause: a worktree-level MIT instruction was mistaken for the public license. Verified 2026-10-19: local LICENSE was MIT while origin/main remained PolyForm Shield, so the promo draft used EVALUATION DEMO. Keep the copyright, license,
+  and third-party attribution notices when distributing it.
 - Logic ported from fast-jev-compaction (MIT) keeps its notice in `NOTICE`. Keep that file when
   moving or renaming ported code.
+- Trigger: delegated playground copy used an MIT footer and described modeled re-reads as observed agent actions. Root cause: template copy followed local license metadata and inferred token savings from a reduction field. Verify origin/main for public license claims and trace metric definitions before writing explanations. Verified 2026-10-19: sweep.ts measures characters and charges modeled full re-reads; the UI/export copy now names those units and omits unverified MIT claims.

@@ -1,6 +1,6 @@
 {
   "name": "agent-context-pruner",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Replaces Claude Code's compaction summary with decision-model pruning: stale tool calls and results are dropped or truncated, everything kept stays verbatim.",
   "author": {
     "name": "9Tech Solutions",
@@ -8,7 +8,7 @@
   },
   "homepage": "https://github.com/9Tech-Solutions/agent-context-pruner",
   "repository": "https://github.com/9Tech-Solutions/agent-context-pruner",
-  "license": "SEE LICENSE IN LICENSE",
+  "license": "MIT",
   "userConfig": {
     "provider": {
       "type": "string",

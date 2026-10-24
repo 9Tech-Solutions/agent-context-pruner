@@ -1,9 +1,9 @@
 {
   "name": "@9tech.solutions/pruner-claude-code",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "description": "Claude Code plugin for agent-context-pruner: replaces the compaction summary with decision-model pruning.",
-  "license": "SEE LICENSE IN LICENSE",
+  "license": "MIT",
   "author": "9Tech Solutions <info@9tech.solutions>",
   "repository": {
     "type": "git",

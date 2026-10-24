@@ -16,4 +16,4 @@ Network providers receive the session text, so pass only sessions you are allowe
 come from `TYPESAFE_API_KEY`, `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. The `--json`
 report holds scores, labels and error kinds, never transcript text.
 
-Licensed under [PolyForm Shield 1.0.0](https://github.com/9Tech-Solutions/agent-context-pruner/blob/main/LICENSE).
+Licensed under [MIT](https://github.com/9Tech-Solutions/agent-context-pruner/blob/main/LICENSE).

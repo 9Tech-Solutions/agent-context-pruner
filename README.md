@@ -74,6 +74,8 @@ TypeSafe Jev and the rules model. The libraries and the CLI are on npm at 0.1.0:
 | [`@9tech.solutions/pruner-cli`](https://www.npmjs.com/package/@9tech.solutions/pruner-cli)       | `agent-context-pruner eval` command |
 
 The Claude Code plugin is installed from this repository, not from npm (below).
+The source tree is MIT licensed; a new npm release is needed to include the updated license
+files in the published packages.
 
 ## Install in Claude Code
 
@@ -259,9 +261,8 @@ adding a model, and [SECURITY.md](SECURITY.md) for reporting a leak of keys or t
 
 ## License
 
-[PolyForm Shield 1.0.0](LICENSE): free to use (at work too), fork, and contribute. You may not
-use it to provide a product that competes with it. This makes the project source-available,
-not OSI open source.
+[MIT](LICENSE): free to use, modify, distribute, and use commercially. Keep the copyright
+and license notices when redistributing the software.
 
 Parts of the core logic are adapted from
 [tamaratran/fast-jev-compaction](https://github.com/tamaratran/fast-jev-compaction) under the
