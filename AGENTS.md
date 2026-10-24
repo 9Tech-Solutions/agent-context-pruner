@@ -38,10 +38,11 @@ direction. `packages/eval` depends on the domain only.
 - `servers/systemone-server` (Python, uv, outside the Bun workspace): a `/v1/systemone` server
   around any model with `system_one(state, questions)`, such as LiquidAI d1-3B. Standard library
   only; torch and transformers come from the `hf` extra. `uv run pytest` inside it.
-- `apps/codex` (`@9tech.solutions/pruner-codex`): experimental Codex 0.163.0 host adapter.
-  The stdio adapter plans edits using the existing core; `runtime/` holds the Rust validation
-  boundary and bridge copied into a pinned upstream checkout. `patches/` holds the runtime
-  integration, and the launcher enables it only in the supplied custom executable.
+- `apps/codex` (`@9tech.solutions/pruner-codex`): experimental Codex adapters. The stock
+  0.164.0 adapter uses an authenticated local HTTP proxy without changing Codex source;
+  `stock-launch.ts` and the PowerShell installer keep the normal command on the official binary.
+  The separate custom 0.163.0 adapter uses a stdio planner, Rust validation boundary in
+  `runtime/`, and a pinned integration in `patches/`.
 - `apps/` (planned): Antigravity host.
 
 ## Host compatibility
@@ -54,6 +55,14 @@ direction. `packages/eval` depends on the domain only.
   at the active editing session. Preserve upstream Codex licenses and notices.
 - The Rust protocol and subprocess boundaries are independently tested with
   `cargo test --manifest-path apps/codex/runtime/Cargo.toml`.
+- The stock proxy edits outgoing requests only; it must preserve saved history and native
+  compaction. Keep credentials and transcript text out of logs, exclude the local token from
+  tool subprocesses, reject redirects, and bypass unsupported provider or policy settings.
+- Native stock smoke runs from the built package with
+  `node apps/codex/dist/stock-smoke.mjs <absolute-official-executable-or-bin/codex.js>`.
+  Use isolated homes, fake credentials, and an explicit loopback upstream. An explicit proxy
+  upstream must fail closed if configuration cannot be enabled. Compile generated tool scripts
+  before relying on their smoke assertions.
 
 ## The Claude Code plugin
 

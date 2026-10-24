@@ -7,6 +7,7 @@
 <p>
   <a href="https://9tech-solutions.github.io/agent-context-pruner/docs/playground/">Try the demo</a> &nbsp; / &nbsp;
   <a href="#install-in-claude-code">Install in Claude Code</a> &nbsp; / &nbsp;
+  <a href="#codex-cli-adapters">Use with Codex</a> &nbsp; / &nbsp;
   <a href="#how-it-works">How it works</a> &nbsp; / &nbsp;
   <a href="#measuring-a-model">Evaluate your sessions</a>
 </p>
@@ -29,7 +30,8 @@ The decision model is swappable:
 - **No model:** a rules-based scorer that runs offline and doubles as the fallback. It ranks by
   how long ago a call ran, the strongest signal of reuse we have measured (see below).
 
-Hosts: Claude Code first. Codex and Antigravity are planned.
+Hosts: Claude Code, an experimental local proxy for official Codex, and a version-pinned
+custom Codex runtime. Antigravity is planned.
 
 Try the evaluator without an API key or model server with the [offline synthetic-session example](examples/synthetic-session-evaluation/README.md). It uses the built-in heuristic, makes no model requests, and shows a synthetic failure case, not real-world savings.
 
@@ -76,6 +78,32 @@ TypeSafe Jev and the rules model. The libraries and the CLI are on npm at 0.1.0:
 The Claude Code plugin is installed from this repository, not from npm (below).
 The source tree is MIT licensed; a new npm release is needed to include the updated license
 files in the published packages.
+
+## Codex CLI adapters
+
+The [Codex adapters](apps/codex) reuse the pruning core in two ways:
+
+| Adapter              | What it changes                                                                                                          | Verified locally                                           |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
+| Official Codex proxy | Shortens eligible old tool results in outgoing requests; keeps the official binary, saved history, and native compaction | Codex 0.164.0 on Windows, using synthetic loopback traffic |
+| Custom Codex runtime | Replaces active history at compaction through a version-pinned runtime patch                                             | Codex 0.163.0 on Windows, using synthetic loopback traffic |
+
+Both adapters are experimental and separate from the Claude Code plugin. The stock proxy uses
+the offline heuristic. It needs no additional model service or Codex source changes. From the
+repository root, after `bun install` and `bun run ready`, install its PowerShell launcher with:
+
+```powershell
+& ./apps/codex/install-powershell.ps1
+```
+
+New PowerShell sessions then use the proxy through the ordinary `codex` command. Explicit
+profiles, custom providers, and unsupported configuration bypass the wrapper. Requests above
+32 MiB currently fail with HTTP 413; this is the proxy's memory guard, separate from the model's
+token limit. The adapter README covers bypass, removal, and the full behavior limits.
+
+Verification covers actual local file reads, pruning, token isolation from shell tools,
+restart/resume, and native manual and automatic compaction. Live workload quality, latency,
+cache behavior, and cost savings have not been measured.
 
 ## Install in Claude Code
 
@@ -232,20 +260,22 @@ Measurements so far (October 2026, one person's sessions, so a first reading, no
 
 ## Roadmap
 
-- Codex and Antigravity hosts.
+- Validate both Codex adapters across more platforms and real workloads.
+- Antigravity host.
 - A Microsoft Decision-1 profile, once Foundry documents its request format.
 - Evaluation data from more people's sessions.
 
 ## Repository layout
 
-| Path                       | Package                               | What it holds                                                        |
-| -------------------------- | ------------------------------------- | -------------------------------------------------------------------- |
-| `packages/domain`          | `@9tech.solutions/pruner-domain`      | Core logic and the `DecisionModel` port, zero deps                   |
-| `packages/models`          | `@9tech.solutions/pruner-models`      | SystemOne adapter with profiles, rules-based model                   |
-| `packages/eval`            | `@9tech.solutions/pruner-eval`        | Replays sessions and measures a model's keep threshold               |
-| `apps/claude-code-plugin`  | `@9tech.solutions/pruner-claude-code` | Claude Code plugin: hook source and the installable `plugin/` folder |
-| `apps/cli`                 | `@9tech.solutions/pruner-cli`         | `agent-context-pruner eval`: the evaluation from the command line    |
-| `servers/systemone-server` | `pruner-systemone-server` (Python)    | Local `/v1/systemone` server for models with `system_one()`          |
+| Path                       | Package                               | What it holds                                                         |
+| -------------------------- | ------------------------------------- | --------------------------------------------------------------------- |
+| `packages/domain`          | `@9tech.solutions/pruner-domain`      | Core logic and the `DecisionModel` port, zero deps                    |
+| `packages/models`          | `@9tech.solutions/pruner-models`      | SystemOne adapter with profiles, rules-based model                    |
+| `packages/eval`            | `@9tech.solutions/pruner-eval`        | Replays sessions and measures a model's keep threshold                |
+| `apps/claude-code-plugin`  | `@9tech.solutions/pruner-claude-code` | Claude Code plugin: hook source and the installable `plugin/` folder  |
+| `apps/cli`                 | `@9tech.solutions/pruner-cli`         | `agent-context-pruner eval`: the evaluation from the command line     |
+| `apps/codex`               | `@9tech.solutions/pruner-codex`       | Stock Codex proxy, optional runtime patch, launchers and smoke checks |
+| `servers/systemone-server` | `pruner-systemone-server` (Python)    | Local `/v1/systemone` server for models with `system_one()`           |
 
 ## Development
 

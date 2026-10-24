@@ -1,4 +1,79 @@
-# Codex CLI adapter (experimental)
+# Codex adapters
+
+## Official Codex through a local proxy
+
+The stock adapter keeps the official Codex executable unchanged. Its launcher starts an
+authenticated loopback proxy, routes model requests through it, and closes it when Codex exits.
+The proxy uses the existing offline heuristic to shorten old successful text tool results.
+It preserves call/output pairs, the first and newest six items, failures, messages, media,
+encrypted items, and ambiguous histories. Invalid plans and unsupported inputs pass through.
+There are no provider calls for pruning and no credential or transcript logs.
+
+From the repository root, run `bun install` and `bun run ready`. On Windows, capture the
+repository and official npm launcher paths once, then use them from any working directory:
+
+```powershell
+$prunerRoot = (Get-Location).Path
+$codexPrefix = Split-Path -Parent (Get-Command codex.cmd -CommandType Application).Path
+$officialCodex = Join-Path $codexPrefix 'node_modules/@openai/codex/bin/codex.js'
+node (Join-Path $prunerRoot 'apps/codex/dist/stock-launch.mjs') $officialCodex
+```
+
+To make the ordinary PowerShell `codex` command use the adapter, run:
+
+```powershell
+& (Join-Path $prunerRoot 'apps/codex/install-powershell.ps1')
+```
+
+The installer copies the built JavaScript into `%LOCALAPPDATA%/codex-context-pruner` and adds
+a marked function to the PowerShell 7 and Windows PowerShell profiles. It backs up existing
+profiles before changing them, preflights syntax for all profiles, writes UTF-8 with a BOM for
+Windows PowerShell compatibility, and rolls back profile writes if installation fails. It is
+safe to repeat. New shells resolve the
+official npm launcher on each invocation, so npm updates keep using the current official binary.
+Existing Codex sessions keep their current runtime. Direct application or IDE launches that
+bypass these PowerShell profiles keep their existing behavior.
+Legacy ANSI profiles must be converted to UTF-8 with a BOM before installation; unreadable
+profiles stop the preflight before any profile is changed.
+
+Maintenance commands, remote clients, named profiles, custom provider/base-URL settings,
+explicit routing or shell-policy overrides, and projects with their own shell policies use
+the official launcher directly. For a one-session bypass, set `$env:CODEX_PRUNER_BYPASS = '1'`.
+Calling the canonical `codex.cmd` also bypasses the profile function. Remove the marked profile
+block, or restore the installer's backup, to undo the integration.
+
+This launcher targets an unmanaged local configuration. Detected configuration or requirements
+files in the standard system paths bypass it; Windows detection uses the `ProgramData`
+environment path. System- and cloud-managed deployments are outside this adapter's supported
+scope; use the canonical `codex.cmd` for those sessions.
+
+The default upstream is the ChatGPT Codex backend for ChatGPT sign-in, or the OpenAI API for
+API-key authentication. `CODEX_PRUNER_UPSTREAM` can select an HTTPS upstream or a loopback HTTP
+test server. The launcher uses a fresh local token, excludes it from tool subprocesses, and
+forces HTTP streaming, uncompressed requests, and a private runtime so a shared daemon cannot
+bypass the proxy. Upstream redirects are rejected. The TOML parser is bundled with its
+BSD-3-Clause notice in `THIRD_PARTY_NOTICES.txt`; no runtime npm install is needed.
+
+The proxy edits outgoing requests only. Saved transcripts retain the originals; resuming
+reapplies pruning to full requests. Requests referencing `previous_response_id` and native
+compaction requests pass through unchanged. Native compaction remains enabled. Bodies above
+32 MiB are rejected. This adapter does not replace Codex's internal history or its summarizer.
+
+The synthetic native smoke uses the official executable, isolated homes, fake credentials,
+and loopback Responses traffic:
+
+```powershell
+node (Join-Path $prunerRoot 'apps/codex/dist/stock-smoke.mjs') $officialCodex
+```
+
+On 2026-10-24, the installed stock adapter passed the native smoke on Windows with both the
+official Codex 0.164.0 executable and its npm JavaScript launcher. The three scenarios cover
+a real local file read and shell-token isolation, old-result pruning and restart/resume, and
+native manual and automatic compaction. The full workspace check passed 164 TypeScript tests,
+including 48 in this package. Unchanged suites reused the build system's verified cache.
+No live workload, quality, latency, caching, or cost benchmark was run.
+
+## Custom Codex CLI adapter (experimental)
 
 This adapter connects the existing pruning core to a custom Codex CLI 0.163.0 build.
 It is separate from the Claude Code plugin. Stock Codex command hooks cannot replace active

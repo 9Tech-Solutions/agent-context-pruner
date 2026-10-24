@@ -20,11 +20,14 @@
     "check": "vp check",
     "prepare-runtime": "bun src/prepare.ts",
     "launch": "bun src/launch.ts",
-    "smoke": "bun src/smoke.ts"
+    "smoke": "bun src/smoke.ts",
+    "launch-stock": "bun src/stock-launch.ts",
+    "smoke-stock": "node dist/stock-smoke.mjs"
   },
   "dependencies": {
     "@9tech.solutions/pruner-domain": "workspace:*",
-    "@9tech.solutions/pruner-models": "workspace:*"
+    "@9tech.solutions/pruner-models": "workspace:*",
+    "smol-toml": "1.9.1"
   },
   "devDependencies": {
     "@types/node": "^26.1.1",

@@ -51,6 +51,20 @@ network only through the injected `HttpTransport`, and new behaviour comes with 
   `claude plugin validate apps/claude-code-plugin/plugin`, and try it in a separate session:
   `claude --plugin-dir apps/claude-code-plugin/plugin`.
 
+## Changing the Codex adapters
+
+- `bun run ready` checks both adapters and builds their launchers. The stock proxy is a
+  private workspace package and is not published to npm.
+- Run `cargo test --locked --manifest-path apps/codex/runtime/Cargo.toml` for changes to the
+  custom runtime boundary. The pinned runtime build uses Rust 1.95.0; Windows GNU builds also
+  need the matching GCC toolchain.
+- Test the stock adapter with its synthetic native smoke against an absolute path to the
+  official executable or npm `bin/codex.js`. Never use live credentials or a real conversation
+  in the smoke. Check pruning, shell-token isolation, restart/resume, and native compaction.
+- Run the PowerShell installer in an isolated directory with temporary profile paths before
+  changing real profiles. Preserve existing content, backups, Unicode, and rollback behavior.
+- See [the adapter README](apps/codex/README.md) for commands and verified limits.
+
 ## Releasing the npm packages
 
 `domain`, `models`, `eval` and `cli` publish from staged folders, because the workspace
