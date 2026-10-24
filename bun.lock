@@ -39,6 +39,22 @@
         "vite-plus": "catalog:",
       },
     },
+    "apps/codex": {
+      "name": "@9tech.solutions/pruner-codex",
+      "version": "0.1.0",
+      "bin": {
+        "codex-pruner": "./dist/launch.mjs",
+      },
+      "dependencies": {
+        "@9tech.solutions/pruner-domain": "workspace:*",
+        "@9tech.solutions/pruner-models": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/node": "^26.1.1",
+        "typescript": "^7.0.2",
+        "vite-plus": "catalog:",
+      },
+    },
     "packages/domain": {
       "name": "@9tech.solutions/pruner-domain",
       "version": "0.1.0",
@@ -87,6 +103,8 @@
     "@9tech.solutions/pruner-claude-code": ["@9tech.solutions/pruner-claude-code@workspace:apps/claude-code-plugin"],
 
     "@9tech.solutions/pruner-cli": ["@9tech.solutions/pruner-cli@workspace:apps/cli"],
+
+    "@9tech.solutions/pruner-codex": ["@9tech.solutions/pruner-codex@workspace:apps/codex"],
 
     "@9tech.solutions/pruner-domain": ["@9tech.solutions/pruner-domain@workspace:packages/domain"],
 

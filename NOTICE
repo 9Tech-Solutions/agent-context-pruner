@@ -28,3 +28,8 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+The Codex runtime patch includes context from OpenAI Codex 0.163.0,
+Copyright 2025 OpenAI, under the Apache License 2.0. The upstream license
+and notices are preserved in third_party/codex/LICENSE and
+third_party/codex/NOTICE. Those terms continue to apply to upstream code.

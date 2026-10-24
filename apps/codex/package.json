@@ -1,0 +1,34 @@
+{
+  "name": "@9tech.solutions/pruner-codex",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Codex host adapter for agent-context-pruner.",
+  "license": "MIT",
+  "author": "9Tech Solutions <info@9tech.solutions>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/9Tech-Solutions/agent-context-pruner.git",
+    "directory": "apps/codex"
+  },
+  "bin": {
+    "codex-pruner": "./dist/launch.mjs"
+  },
+  "type": "module",
+  "scripts": {
+    "build": "vp pack",
+    "test": "vp test",
+    "check": "vp check",
+    "prepare-runtime": "bun src/prepare.ts",
+    "launch": "bun src/launch.ts",
+    "smoke": "bun src/smoke.ts"
+  },
+  "dependencies": {
+    "@9tech.solutions/pruner-domain": "workspace:*",
+    "@9tech.solutions/pruner-models": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "typescript": "^7.0.2",
+    "vite-plus": "catalog:"
+  }
+}

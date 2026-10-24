@@ -1,0 +1,163 @@
+diff --git a/codex-rs/core/src/compact.rs b/codex-rs/core/src/compact.rs
+index 7176134..cf3608f 100644
+--- a/codex-rs/core/src/compact.rs
++++ b/codex-rs/core/src/compact.rs
+@@ -271,6 +271,27 @@ async fn run_compact_task_inner_impl(
+     let compaction_item = TurnItem::ContextCompaction(ContextCompactionItem::new());
+     sess.emit_turn_item_started(&turn_context, &compaction_item)
+         .await;
++    let pruning_instructions = input
++        .iter()
++        .filter_map(|item| match item {
++            UserInput::Text { text, .. } => Some(text.as_str()),
++            _ => None,
++        })
++        .collect::<Vec<_>>()
++        .join("\n");
++    if input
++        .iter()
++        .all(|item| matches!(item, UserInput::Text { .. }))
++        && crate::context_pruner::try_compact(
++            &sess,
++            &replacement_step_context,
++            Some(&compaction_item),
++            Some(&pruning_instructions),
++        )
++        .await
++    {
++        return Ok(String::new());
++    }
+     let initial_input_for_turn: ResponseInputItem = ResponseInputItem::from(input);
+ 
+     let mut history = sess.clone_history().await;
+diff --git a/codex-rs/core/src/compact_remote_v2_installation.rs b/codex-rs/core/src/compact_remote_v2_installation.rs
+index a13b18b..200f2e2 100644
+--- a/codex-rs/core/src/compact_remote_v2_installation.rs
++++ b/codex-rs/core/src/compact_remote_v2_installation.rs
+@@ -26,6 +26,10 @@ pub(super) async fn run_compaction(
+     candidate: Option<BackgroundCompactionCandidate>,
+     fallback: CompactionFallback,
+ ) -> CodexResult<bool> {
++    if crate::context_pruner::try_compact(sess, replacement_step_context, started_item, None).await
++    {
++        return Ok(true);
++    }
+     if let Some(candidate) = candidate {
+         let installed = build_and_install_compaction(
+             sess,
+diff --git a/codex-rs/core/src/lib.rs b/codex-rs/core/src/lib.rs
+index 08b52fc..cdb314a 100644
+--- a/codex-rs/core/src/lib.rs
++++ b/codex-rs/core/src/lib.rs
+@@ -38,6 +38,7 @@ mod compact_remote_history;
+ mod compact_remote_v2;
+ mod compact_retained_tool_outputs;
+ mod compact_token_budget;
++mod context_pruner;
+ mod thread_startup_metadata;
+ pub use codex_network_proxy::EnvironmentNetworkPolicy;
+ pub use codex_network_proxy::NetworkDomainPermission;
+diff --git a/codex-rs/core/src/session/async_compaction.rs b/codex-rs/core/src/session/async_compaction.rs
+index bb80f85..b2778b3 100644
+--- a/codex-rs/core/src/session/async_compaction.rs
++++ b/codex-rs/core/src/session/async_compaction.rs
+@@ -38,6 +38,9 @@ pub(crate) struct AsyncCompactionState {
+ }
+ 
+ pub(super) fn enabled(turn_context: &TurnContext) -> bool {
++    if crate::context_pruner::enabled() {
++        return false;
++    }
+     turn_context
+         .config
+         .features
+diff --git a/codex-rs/core/src/session/mod.rs b/codex-rs/core/src/session/mod.rs
+index a541c55..2fc8175 100644
+--- a/codex-rs/core/src/session/mod.rs
++++ b/codex-rs/core/src/session/mod.rs
+@@ -460,6 +460,12 @@ pub(crate) struct CompactionPrefix {
+ 
+ pub(crate) enum CompactedHistoryInstallation<'a> {
+     Complete(CompactedHistoryMetadata),
++    Pruned {
++        generation: u64,
++        len: usize,
++        expected: &'a [ResponseItemEnvelope],
++        input_goal_ids: HashSet<ResponseItemId>,
++    },
+     Prefix {
+         prefix: CompactionPrefix,
+         prefix_context: Vec<ResponseItem>,
+@@ -4170,6 +4176,7 @@ impl Session {
+         let compaction_model_hash = match &installation {
+             CompactedHistoryInstallation::Complete(metadata) => &metadata.compaction_model_hash,
+             CompactedHistoryInstallation::Prefix { model_info, .. } => &model_info.comp_hash,
++            CompactedHistoryInstallation::Pruned { .. } => &None,
+         };
+         let mcp_revision = self
+             .services
+@@ -4181,12 +4188,15 @@ impl Session {
+                     revision
+                 })
+             });
+-        if let Some(checkpoint) = items.iter_mut().rev().find(|envelope| {
+-            matches!(
+-                envelope.item,
+-                ResponseItem::Compaction { .. } | ResponseItem::ContextCompaction { .. }
+-            )
+-        }) {
++        // Pruning preserves existing opaque checkpoints and their original producer metadata.
++        if !matches!(&installation, CompactedHistoryInstallation::Pruned { .. })
++            && let Some(checkpoint) = items.iter_mut().rev().find(|envelope| {
++                matches!(
++                    envelope.item,
++                    ResponseItem::Compaction { .. } | ResponseItem::ContextCompaction { .. }
++                )
++            })
++        {
+             checkpoint
+                 .metadata
+                 .get_or_insert_default()
+@@ -4197,10 +4207,40 @@ impl Session {
+         let _settings_guard = thread_settings::acquire_persistence_lock(self).await;
+         let (compacted_item, started_item) = {
+             let mut state = self.state.lock().await;
+-            let complete_replacement =
+-                matches!(&installation, CompactedHistoryInstallation::Complete(_));
++            let complete_replacement = matches!(
++                &installation,
++                CompactedHistoryInstallation::Complete(_)
++                    | CompactedHistoryInstallation::Pruned { .. }
++            );
+             let (metadata, started_item) = match installation {
+                 CompactedHistoryInstallation::Complete(metadata) => (metadata, None),
++                CompactedHistoryInstallation::Pruned {
++                    generation,
++                    len,
++                    expected,
++                    input_goal_ids,
++                } => {
++                    if state.history.history_version() != generation
++                        || state.history.annotated_items().len() != len
++                        || state.history.annotated_items() != expected
++                    {
++                        return false;
++                    }
++                    let (window_number, window_ids) = state.advance_auto_compact_window();
++                    (
++                        CompactedHistoryMetadata {
++                            input_goal_ids,
++                            message: "agent-context-pruner: pruned tool history without a summary"
++                                .to_string(),
++                            window_number,
++                            window_ids,
++                            compaction_response_id: None,
++                            compaction_model_hash: None,
++                            reviewer_compaction_hash: None,
++                        },
++                        None,
++                    )
++                }
+                 CompactedHistoryInstallation::Prefix {
+                     prefix,
+                     prefix_context,

@@ -22,6 +22,14 @@ jobs:
       - name: The committed plugin bundle matches the source
         run: git diff --exit-code -- apps/claude-code-plugin/plugin/hooks/pruner.js
 
+  codex-protocol:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: rustup toolchain install 1.95.0 --profile minimal
+      - name: Validate the Codex pruning and helper boundaries
+        run: cargo +1.95.0 test --locked --manifest-path apps/codex/runtime/Cargo.toml
+
   systemone-server:
     runs-on: ubuntu-latest
     defaults:
